@@ -1,0 +1,1 @@
+# nfflu-results-collector
