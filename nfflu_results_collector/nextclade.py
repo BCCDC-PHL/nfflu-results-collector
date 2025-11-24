@@ -36,7 +36,7 @@ class Nextclade_Results_Collector:
             logging.debug(json.dumps({"event_type": "nextclade_datasets_loaded", "dataset_count": len(df)}))
             return df
         except FileNotFoundError:
-            logging.error(json.dumps({"event_type": "nextclade_datasets_file_not_found", "tsv_file": tsv_file}))
+            logging.warning(json.dumps({"event_type": "nextclade_datasets_file_not_found", "tsv_file": tsv_file}))
             raise
         except Exception as e:
             logging.error(json.dumps({"event_type": "nextclade_datasets_read_error", "tsv_file": tsv_file, "error": str(e)}))
@@ -61,7 +61,7 @@ class Nextclade_Results_Collector:
         datasets_path = os.path.join(work_dirs[agg_process_name], 'nextclade-tsv-outputs.csv')
 
         if not os.path.exists(datasets_path):
-            logging.error(json.dumps({"event_type": "nextclade_datasets_file_not_found", "datasets_path": datasets_path}))
+            logging.warning(json.dumps({"event_type": "nc_datasets_not_found_in_work_dir", "datasets_path": datasets_path}))
             raise FileNotFoundError(f"Nextclade datasets file not found: {datasets_path}")
         
         logging.info(json.dumps({"event_type": "nextclade_datasets_publishing", "output_path": output_datasets_path}))
@@ -81,12 +81,16 @@ class Nextclade_Results_Collector:
 
         try:
             self._publish_nextclade_datasets(nextclade_results_dir, datasets_csv_path)
+        except FileNotFoundError as e:
+            logging.warning(json.dumps({"event_type": "nextclade_datasets_extraction_failed", "error": str(e)}))
+        
+        try:
             datasets_df = self._read_nextclade_datasets(datasets_csv_path)
             datasets_dict = datasets_df.set_index('nextclade_filename').to_dict('index')
-
         except FileNotFoundError as e:
-            logging.error(json.dumps({"event_type": "nextclade_datasets_extraction_failed", "error": str(e)}))
             datasets_dict = {}
+            logging.error(json.dumps({"event_type": "no_nextclade_datasets_data", "path": datasets_csv_path}))
+            
 
         # Get all sample subdirectories
         sample_dirs = [d for d in glob(os.path.join(nextclade_results_dir, '*')) 
