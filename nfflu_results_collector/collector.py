@@ -377,6 +377,12 @@ class Nfflu_Results_Collector:
         
         return result
 
+    def collect_nextclade_results(self, analysis_dir, nextclade_output_path):
+        nextclade_df = self._collect_nextclade(analysis_dir)
+
+        nextclade_df.to_csv(nextclade_output_path, sep='\t', index=False)
+        logging.info(json.dumps({"event_type": "nextclade_results_written", "output_path": nextclade_output_path}))
+
     def collect_mixture_report(self, analysis_dir, output_mixture_file):
         """Collect mixture report data for all samples in the analysis directory and concatenate them into a single output file."""
         # Pattern: ${analysis_run_dir}/mixture_analysis/${sample_name}_mixture_report.tsv
@@ -412,6 +418,8 @@ class Nfflu_Results_Collector:
         logging.info(json.dumps({"event_type": "mixture_report_written", "output_file": output_mixture_file}))
         
         return 
+
+    
 
     def symlink_consensus_fastas(self, analysis_dir, output_dir):
         """Symlink consensus FASTA files to the output directory."""
