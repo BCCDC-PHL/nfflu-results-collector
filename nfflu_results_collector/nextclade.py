@@ -56,7 +56,6 @@ class Nextclade_Results_Collector:
                 break
         else:
             logging.error(json.dumps({"event_type": "agg_nextclade_tsv_process_not_found", "available_processes": list(work_dirs.keys())}))
-            logging.debug(json.dumps({"event_type": "available_workdir_processes", "processes": list(work_dirs.keys())}))
             raise ValueError(f'Could not find AGG_NEXTCLADE_TSV process')
 
         datasets_path = os.path.join(work_dirs[agg_process_name], 'nextclade-tsv-outputs.csv')
@@ -148,15 +147,17 @@ class Nextclade_Results_Collector:
             combined_df = pd.concat(dataframes, ignore_index=True)
 
             combined_df = combined_df.drop(columns=['index'], errors='ignore')
+
+            combined_df = combined_df.loc[combined_df.groupby('sample')['alignmentScore'].idxmax()]
             
             # Write output CSV file
-            output_file = os.path.join(nextclade_results_dir, f'{sample_name}_nextclade.tsv')
-            try:
-                combined_df.to_csv(output_file, sep='\t', index=False)
-                logging.info(json.dumps({"event_type": "nextclade_results_written", "sample_name": sample_name, "output_file": output_file}))
-            except Exception as e:
-                logging.error(json.dumps({"event_type": "output_file_write_failed", "output_file": output_file, "error": str(e)}))
-                raise
+            # output_file = os.path.join(nextclade_results_dir, f'{sample_name}_nextclade.tsv')
+            # try:
+            #     combined_df.to_csv(output_file, sep='\t', index=False)
+            #     logging.info(json.dumps({"event_type": "nextclade_results_written", "sample_name": sample_name, "output_file": output_file}))
+            # except Exception as e:
+            #     logging.error(json.dumps({"event_type": "output_file_write_failed", "output_file": output_file, "error": str(e)}))
+            #     raise
 
             collect_dfs.append(combined_df)
         
