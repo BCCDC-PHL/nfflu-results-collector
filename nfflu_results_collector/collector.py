@@ -150,7 +150,9 @@ class Nfflu_Results_Collector:
 
         # Step 7: Write to CSV
         output_summary_dir = os.path.dirname(output_summary_file)
-        os.makedirs(output_summary_dir, exist_ok=True)
+        
+        if output_summary_dir != '' and not os.path.exists(output_summary_dir):
+            os.makedirs(output_summary_dir, exist_ok=True)
 
         output_df.to_csv(output_summary_file, index=False)
         logging.info(json.dumps({"event_type": "results_written", "output_file": output_summary_file}))
@@ -418,8 +420,6 @@ class Nfflu_Results_Collector:
         logging.info(json.dumps({"event_type": "mixture_report_written", "output_file": output_mixture_file}))
         
         return 
-
-    
 
     def symlink_consensus_fastas(self, analysis_dir, output_dir):
         """Symlink consensus FASTA files to the output directory."""

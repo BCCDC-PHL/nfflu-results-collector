@@ -18,11 +18,12 @@ class Nextclade_Results_Collector:
         pass
 
     def _filter_nextclade_df(self, df):
+        df.insert(0, 'sample', df['seqName'].str.split('_').str[0])
         df = df.dropna(subset=['clade'])
 
         if df.empty:
             return df
-        df.insert(0, 'sample', df['seqName'].str.split('_').str[0])
+        
         df = df.loc[[df['alignmentScore'].idxmax()],:]
 
         logging.debug(json.dumps({"event_type": "nextclade_alignment_filtered", "alignment_score": float(df['alignmentScore'].values[0])}))
@@ -148,22 +149,22 @@ class Nextclade_Results_Collector:
                 continue
             
             # Concatenate all dataframes for this sample
-            combined_df = pd.concat(dataframes, ignore_index=True)
+            sample_df = pd.concat(dataframes, ignore_index=True)
 
-            combined_df = combined_df.drop(columns=['index'], errors='ignore')
+            sample_df = sample_df.drop(columns=['index'], errors='ignore')
 
-            combined_df = combined_df.loc[combined_df.groupby('sample')['alignmentScore'].idxmax()]
+            sample_df = sample_df.loc[sample_df.groupby('sample')['alignmentScore'].idxmax()]
             
             # Write output CSV file
             # output_file = os.path.join(nextclade_results_dir, f'{sample_name}_nextclade.tsv')
             # try:
-            #     combined_df.to_csv(output_file, sep='\t', index=False)
+            #     sample_df.to_csv(output_file, sep='\t', index=False)
             #     logging.info(json.dumps({"event_type": "nextclade_results_written", "sample_name": sample_name, "output_file": output_file}))
             # except Exception as e:
             #     logging.error(json.dumps({"event_type": "output_file_write_failed", "output_file": output_file, "error": str(e)}))
             #     raise
 
-            collect_dfs.append(combined_df)
+            collect_dfs.append(sample_df)
         
         logging.info(json.dumps({"event_type": "nextclade_results_collection_completed"}))
 
