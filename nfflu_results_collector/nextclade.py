@@ -179,6 +179,6 @@ class Nextclade_Results_Collector:
         
         if self.config.get("legacy-clade", False):
             final_df['clade'] = final_df['legacy-clade']
-            logging.warning(json.dumps({"event_type": "remapping_to_legacy_clade_column"}))
+            logging.info(json.dumps({"event_type": "remapping_to_legacy_clade_column"}))
         
         return final_df
