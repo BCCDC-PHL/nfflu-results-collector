@@ -16,5 +16,6 @@
     "GenoFLU_NS", "GenoFLU_PA", "GenoFLU_PB1", "GenoFLU_PB2",
     "nextclade_version", "genoflu_version", "nfflu_version"
   ],
-  "auto-nfflu": false
+  "auto-nfflu": false,
+  "legacy-clade": true
 }

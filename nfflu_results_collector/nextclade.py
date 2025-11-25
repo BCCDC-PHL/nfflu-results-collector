@@ -8,14 +8,16 @@ import logging
 import nfflu_results_collector.tools as tools
 
 class Nextclade_Results_Collector:
-    def __init__(self):
+    def __init__(self, config=None):
         """
         Initializes a Nextclade_Results_Collector instance.
         
         This class provides methods to collect, filter, and publish Nextclade results.
         No parameters are required for initialization.
         """
-        pass
+        self.config = config
+        if self.config is None:
+            self.config = {}
 
     def _filter_nextclade_df(self, df):
         df.insert(0, 'sample', df['seqName'].str.split('_').str[0])
@@ -169,9 +171,14 @@ class Nextclade_Results_Collector:
         logging.info(json.dumps({"event_type": "nextclade_results_collection_completed"}))
 
         # Concatenate all collected dataframes
-        if collect_dfs:
-            final_df = pd.concat(collect_dfs, ignore_index=True)
-            return final_df
-        else:
+        if not collect_dfs:
             logging.warning(json.dumps({"event_type": "no_valid_nextclade_dataframes_collected"}))
             return None
+
+        final_df = pd.concat(collect_dfs, ignore_index=True)
+        
+        if self.config.get("legacy-clade", False):
+            final_df['clade'] = final_df['legacy-clade']
+            logging.warning(json.dumps({"event_type": "remapping_to_legacy_clade_column"}))
+        
+        return final_df

@@ -289,7 +289,7 @@ class Nfflu_Results_Collector:
     def _collect_nextclade(self, analysis_dir):
         """Collect nextclade results from nextclade.tsv."""
         nextclade_path = os.path.join(analysis_dir, "nextclade")
-        nextclade_rc = nextclade.Nextclade_Results_Collector()
+        nextclade_rc = nextclade.Nextclade_Results_Collector(self.config)
 
         try:
             df = nextclade_rc.collect_nextclade_results(nextclade_path)
@@ -380,7 +380,9 @@ class Nfflu_Results_Collector:
         return result
 
     def collect_nextclade_results(self, analysis_dir, nextclade_output_path):
-        nextclade_df = self._collect_nextclade(analysis_dir)
+        nextclade_path = os.path.join(analysis_dir, "nextclade")
+        nextclade_rc = nextclade.Nextclade_Results_Collector(self.config)
+        nextclade_df = nextclade_rc.collect_nextclade_results(nextclade_path)
 
         nextclade_df.to_csv(nextclade_output_path, sep='\t', index=False)
         logging.info(json.dumps({"event_type": "nextclade_results_written", "output_path": nextclade_output_path}))
