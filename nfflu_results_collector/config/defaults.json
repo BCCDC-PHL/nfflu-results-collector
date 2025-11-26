@@ -11,11 +11,11 @@
     "PB1_reads_mapped", "PB1_seq_length", "PB1_consensus_completeness", "PB1_tree_pass",
     "PB2_reads_mapped", "PB2_seq_length", "PB2_consensus_completeness", "PB2_tree_pass",
     "HPAI_cleave_start", "HPAI_cleave_end", "HPAI_cleavage_site_motif",
-    "Nextclade_clade", "Nextclade_subclade", "Nextclade_qc.overallScore", "Nextclade_qc.overallStatus", "nextclade_dataset_name", "nextclade_dataset_version",
+    "Nextclade_clade", "Nextclade_subclade", "Nextclade_legacy_clade", "Nextclade_qc.overallScore", "Nextclade_qc.overallStatus", "Nextclade_dataset_name", "Nextclade_dataset_version",
     "GenoFLU_Genotype", "GenoFLU_HA", "GenoFLU_NA", "GenoFLU_M", "GenoFLU_NP",
     "GenoFLU_NS", "GenoFLU_PA", "GenoFLU_PB1", "GenoFLU_PB2",
     "nextclade_version", "genoflu_version", "nfflu_version"
   ],
   "auto-nfflu": false,
-  "legacy-clade": true
+  "legacy-clade": false
 }
