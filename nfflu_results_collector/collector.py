@@ -297,17 +297,19 @@ class Nfflu_Results_Collector:
 
             if df is None or df.empty:
                 return pd.DataFrame()
-                
-            df = df.loc[df['seqName'].str.split("_").str[-1] == 'HA']
+            
+            # final run_summary is only interested in HA clade call 
+            #df = df.loc[df['seqName'].str.split("_").str[-1] == 'HA']
             
             # Rename columns to match target
             rename_map = {
                 'clade': 'Nextclade_clade',
                 'subclade': 'Nextclade_subclade',
+                'legacy-clade': 'Nextclade_legacy_clade',
                 'qc.overallScore': 'Nextclade_qc.overallScore',
                 'qc.overallStatus': 'Nextclade_qc.overallStatus',
-                'nextclade_dataset_name': 'nextclade_dataset_name',
-                'nextclade_dataset_version': 'nextclade_dataset_version'
+                'nextclade_dataset_name': 'Nextclade_dataset_name',
+                'nextclade_dataset_version': 'Nextclade_dataset_version'
             }
             
             # Select only columns that exist and rename them

@@ -23,6 +23,9 @@ class Nextclade_Results_Collector:
         df.insert(0, 'sample', df['seqName'].str.split('_').str[0])
         df = df.dropna(subset=['clade'])
 
+        if self.config.get("nextclade-ha-only", True): 
+            df = df.loc[df['seqName'].str.split("_").str[-1] == 'HA']
+
         if df.empty:
             return df
         
@@ -79,6 +82,9 @@ class Nextclade_Results_Collector:
             nextclade_results_dir: Directory containing sample subdirectories with nextclade TSV files
         """
         logging.info(json.dumps({"event_type": "nextclade_results_collection_started", "nextclade_results_dir": nextclade_results_dir}))
+
+        if self.config.get("nextclade-ha-only", True):
+            logging.info(json.dumps({"event_type": "nextclade_ha_only_filtering_enabled"}))
 
         datasets_csv_path = os.path.join(nextclade_results_dir, 'nextclade-dataset-versions.csv')
 
