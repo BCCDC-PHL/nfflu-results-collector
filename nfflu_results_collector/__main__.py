@@ -13,6 +13,7 @@ def main():
     parser.add_argument('-o', '--output-summary', required=True, help='Path to output summary CSV file')
     parser.add_argument('-O', '--output-mixture', help='Path to output mixture report CSV file')
     parser.add_argument('-s', '--output-symlinks', help='Path to output symlinks directory')
+    parser.add_argument('-n', '--output-nextclade', help='Path to output Nextclade CSV file')
     parser.add_argument('-a', '--auto-nfflu', action='store_true', help='Run on auto-nfflu results structure')
     parser.add_argument('--log-level', default='INFO', help='Logging level (default: INFO)')
 
@@ -28,6 +29,8 @@ def main():
         collector.collect_mixture_report(args.analysis_dir, args.output_mixture)
     if args.output_symlinks:
         collector.symlink_consensus_fastas(args.analysis_dir, args.output_symlinks)
+    if args.output_nextclade:
+        collector.collect_nextclade_results(args.analysis_dir, args.output_nextclade)
 
 if __name__ == "__main__":
     sys.exit(main())

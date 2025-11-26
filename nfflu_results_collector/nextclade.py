@@ -176,6 +176,7 @@ class Nextclade_Results_Collector:
             return None
 
         final_df = pd.concat(collect_dfs, ignore_index=True)
+        logging.debug(json.dumps({"event_type": "nextclade_results_concatenated", "config": self.config}))
         
         if self.config.get("legacy-clade", False):
             final_df['clade'] = final_df['legacy-clade']
