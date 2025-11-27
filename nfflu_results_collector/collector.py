@@ -46,7 +46,7 @@ class Nfflu_Results_Collector:
 
         # Parse sample name into components using pandas str.split
         # Format is typically: CID-Plate-Index-Well (where CID can contain dashes)
-        samples_df[['CID', 'Plate', 'Index', 'Well']] = samples_df['sample'].str.rsplit('-', n=3, expand=True)
+        samples_df[['CID', 'Plate', 'Index', 'Well']] = samples_df['sample'].str.rsplit('-', n=3).apply(lambda x : pd.Series(x) if len(x) == 4 else pd.Series(["".join(x), pd.NA, pd.NA, pd.NA]))
         samples_df['FastQID'] = samples_df['sample']
 
         # Add Run column
