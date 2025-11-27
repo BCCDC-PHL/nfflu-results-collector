@@ -290,7 +290,7 @@ class Nfflu_Results_Collector:
         """Collect nextclade results from nextclade.tsv."""
         nextclade_path = os.path.join(analysis_dir, "nextclade")
         nextclade_rc = nextclade.Nextclade_Results_Collector(self.config)
-        logging.warning(json.dumps({"event_type": "collecting_nextclade_results", "config": self.config}))
+        logging.debug(json.dumps({"event_type": "collecting_nextclade_results", "config": self.config}))
 
         try:
             df = nextclade_rc.collect_nextclade_results(nextclade_path)
