@@ -61,7 +61,7 @@ class Nextclade_Results_Collector:
                 agg_process_name = process
                 break
         else:
-            logging.error(json.dumps({"event_type": "agg_nextclade_tsv_process_not_found", "available_processes": list(work_dirs.keys())}))
+            logging.error(json.dumps({"event_type": "agg_nextclade_tsv_process_not_found", "log_path": log_path}))
             raise ValueError(f'Could not find AGG_NEXTCLADE_TSV process')
 
         datasets_path = os.path.join(work_dirs[agg_process_name], 'nextclade-tsv-outputs.csv')
@@ -91,8 +91,10 @@ class Nextclade_Results_Collector:
         try:
             self._publish_nextclade_datasets(nextclade_results_dir, datasets_csv_path)
         except FileNotFoundError as e:
-            logging.warning(json.dumps({"event_type": "nextclade_datasets_extraction_failed", "error": str(e)}))
-        
+            logging.warning(json.dumps({"event_type": "publish_nc_datasets_failed_file_missing", "error": str(e)}))
+        except ValueError as e:
+            logging.warning(json.dumps({"event_type": "publish_nc_datasets_failed_no_process", "error": str(e)}))
+
         try:
             datasets_df = self._read_nextclade_datasets(datasets_csv_path)
             datasets_dict = datasets_df.set_index('nextclade_filename').to_dict('index')
