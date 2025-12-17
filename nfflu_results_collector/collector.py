@@ -48,15 +48,37 @@ class Nfflu_Results_Collector:
         # Format is typically: CID-Plate-Index-Well (where CID can contain dashes)
 
         def extract_fields(sample_name):
-            
-            field_search = re.search(r"[0-9]{4,}-[A-Z0-9]{1,}-[A-Z][0-9]{2}", sample_name)
-            
-            if field_search:
-                cid = re.sub(r"-[0-9]{4,}-[A-Z0-9]{1,}-[A-Z][0-9]{2}", "", sample_name)
-                plate, index, well = field_search.group(0).split("-")
-                return [cid, plate, index, well]
 
-            return [sample_name, pd.NA, pd.NA, pd.NA]
+            standard_format_search = re.match(r"^[A-Z][0-9]{10}-[0-9]{4,}-[A-Z0-9]{1,}-[A-Z][0-9]{2}$", sample_name)
+
+            if standard_format_search:
+                fields = sample_name.split("-")
+                return fields
+            
+            control_format_search = re.match(r"^([A-Za-z]{3,}[0-9]{8})-[A-Za-z]+-([0-9]{4,})-([A-Z0-9]{1,})-([A-Z][0-9]{2})$", sample_name)
+
+            if control_format_search:
+                return [control_format_search.group(1), control_format_search.group(2), control_format_search.group(3), control_format_search.group(4)]
+
+            salvage_fields_search = re.search(r"[0-9]{4,}-[A-Z0-9]{1,}-[A-Z][0-9]{2}$", sample_name)
+            
+            
+            if salvage_fields_search:
+                plate, index, well = salvage_fields_search.group(0).split("-")
+            else:
+                plate, index, well = pd.NA, pd.NA, pd.NA
+            
+            salvage_sample_cid_search = re.search(r"^([A-Z][0-9]{10}).*", sample_name)
+            salvage_control_cid_search = re.search(r"^([A-Za-z]{3,}[0-9]{8}).*", sample_name)
+
+            if salvage_sample_cid_search:
+                cid = salvage_sample_cid_search.group(1)
+            elif salvage_control_cid_search:
+                cid = salvage_control_cid_search.group(1)
+            else:
+                cid = sample_name
+
+            return [cid, plate, index, well]
 
         samples_df[['CID', 'Plate', 'Index', 'Well']] = samples_df['sample'].apply(extract_fields).tolist()
         samples_df['FastQID'] = samples_df['sample']
