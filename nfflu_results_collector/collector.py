@@ -60,11 +60,10 @@ class Nfflu_Results_Collector:
             if control_format_search:
                 return [control_format_search.group(1), control_format_search.group(2), control_format_search.group(3), control_format_search.group(4)]
 
-            salvage_fields_search = re.search(r"[0-9]{4,}-[A-Z0-9]{1,}-[A-Z][0-9]{2}$", sample_name)
-            
+            salvage_fields_search = re.search(r"-[0-9]{4,9}-[A-Z0-9]{1,}-[A-Z][0-9]{2}$", sample_name)
             
             if salvage_fields_search:
-                plate, index, well = salvage_fields_search.group(0).split("-")
+                plate, index, well = salvage_fields_search.group(0).lstrip("-").split("-")
             else:
                 plate, index, well = pd.NA, pd.NA, pd.NA
             
