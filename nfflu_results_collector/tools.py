@@ -58,7 +58,7 @@ def glob_single(glob_expr):
     return files[0].rstrip(os.sep)
 
 
-def collect_nfflu_fastq_names(analysis_dir, fastq_dir="{sample}/fastq"):
+def collect_nfflu_fastq_names(analysis_dir, fastq_dir):
     """Extract sample names from fastq directory, handling both Nanopore and Illumina paired-end naming."""
     analysis_dir = os.path.abspath(analysis_dir)
     sample_names = set()  # Using a set to avoid duplicates from paired-end reads

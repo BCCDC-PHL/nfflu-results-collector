@@ -40,7 +40,7 @@ pip install -e .
 
 ### Requirements
 
-- Python >= 3.8
+- Python >= 3.9
 - pandas >= 2.0
 - biopython >= 1.80
 - pyyaml >= 6.0
