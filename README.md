@@ -123,34 +123,37 @@ aggregates alongside them:
 ```
 analysis_output/
 ├── {sample}/
+│   ├── fastq/
+│   │   └── {sample}*.merged.fastq.gz   # used for sample name extraction
 │   ├── mapping/
-│   │   └── {sample}*.idxstats      # Read mapping statistics
+│   │   └── {sample}*.idxstats          # Read mapping statistics
 │   ├── consensus/
 │   │   └── bcftools/
 │   │       └── {sample}.consensus.fasta
 │   ├── annotation/
-│   │   └── {sample}.cleavage.tsv   # HPAI cleavage site
+│   │   └── {sample}.cleavage.tsv       # HPAI cleavage site
 │   ├── genoflu/
-│   │   └── {sample}.genoflu.tsv    # GenoFLU genotyping
+│   │   └── {sample}.genoflu.tsv        # GenoFLU genotyping
 │   ├── nextclade/
 │   │   └── *.nextclade.tsv
 │   └── mixtures/
 │       └── {sample}_mixtures.csv
-├── fastq/                          # Input FASTQ files (for sample name extraction)
-├── subtyping_report/
-│   └── subtype_results.csv         # Subtyping results
-├── nextclade/
-│   └── nextclade-dataset-versions.csv  # dataset name/version per sample (optional)
-├── pipeline_status.csv             # per-pipeline-stage status, written by the
-│                                    # orchestrator (e.g. auto-nfflu); optional,
-│                                    # only merged in when auto-nfflu mode is on
+├── aggregate/
+│   ├── bcftools/
+│   │   └── subtyping_report/
+│   │       └── subtype_results.csv     # Subtyping results
+│   └── nextclade/
+│       └── nextclade-dataset-versions.csv  # dataset name/version per sample (optional)
+├── pipeline_status.csv                 # per-pipeline-stage status, written by the
+│                                        # orchestrator (e.g. auto-nfflu); optional,
+│                                        # only merged in when auto-nfflu mode is on
 └── pipeline_info/
-    └── software_versions.yml       # Software provenance
+    └── software_versions.yml           # Software provenance
 ```
 
 Note the two `nextclade` locations: the per-sample TSVs are published under each
 sample, while `nextclade-dataset-versions.csv` is a single run-level file written
-by the orchestrator.
+by the orchestrator under `aggregate/`.
 
 Note: this collector no longer reaches into Nextflow execution internals (logs,
 work directories) for anything. `nextclade-dataset-versions.csv` is expected to
@@ -228,21 +231,20 @@ Configuration is layered: packaged defaults (`nfflu_results_collector/config/def
 are deep-merged with an optional user file (`-c/--config`, YAML or JSON, selected
 by extension), then deep-merged with any caller-supplied overrides (e.g. the dict
 passed to `Nfflu_Results_Collector(...)`, or `--auto-nfflu` on the CLI).
-See `config-template.json` for a starting point.
+`config-template.json` is a copy of the packaged defaults, kept in sync by a
+test; copy it and override only the keys you need.
 
 ```yaml
 # example config.yaml
 tree_pass:
-  threshold: 85          # default: 90
+  threshold: 85           # default: 90
 segments: [PB2, PB1, PA, HA, NP, NA, M, NS]
 nextclade:
   ha_only: true           # default: true
-  legacy_clade: false      # default: false
+  legacy_clade: false     # default: false
 paths:
   idxstats: "{sample}/mapping/{sample}*.idxstats"
   # ... see defaults.json for the full set of path templates
-strict_schema: false       # if true, a source producing an undeclared
-                            # column raises instead of appending it
 ```
 
 For backward compatibility, the pre-nested flat keys (`auto-nfflu`,
