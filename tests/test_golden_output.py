@@ -8,8 +8,8 @@ GOLDEN_PATH = os.path.join(os.path.dirname(__file__), "fixtures", "golden_run_su
 def test_run_summary_matches_golden_output(analysis_dir, tmp_path):
     """The run_summary.csv column set, order, and values are a frozen
     contract consumed by downstream ingestion. This test pins that
-    contract byte-for-byte against a checked-in golden file, captured
-    from the pre-refactor implementation. See regenerate_golden.py."""
+    contract byte-for-byte against a checked-in golden file, so a change
+    to it has to be deliberate. See regenerate_golden.py."""
     output_path = tmp_path / "run_summary.csv"
 
     collector = Nfflu_Results_Collector({"auto-nfflu": False})

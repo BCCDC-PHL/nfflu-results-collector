@@ -93,7 +93,6 @@ def build_fixture(root):
     _build_nextclade(analysis_dir)
     _build_mixtures(analysis_dir)
     _build_software_versions(analysis_dir)
-    _build_nextflow_log_and_workdir(root, analysis_dir)
 
     return analysis_dir
 
@@ -229,31 +228,3 @@ def _build_software_versions(analysis_dir):
           CFIA-NCFAD/nf-flu: '3.10.0'
     """)
     _write(path, content)
-
-
-def _build_nextflow_log_and_workdir(root, analysis_dir):
-    """Fake nextflow.log + AGG_NEXTCLADE_TSV work dir, used only by the
-    OLD (pre-refactor) nextclade.py to exercise its log-scrape-and-copy
-    path when generating the golden output. The copied content is
-    identical to the already-published nextclade-dataset-versions.csv,
-    so the copy is a content-preserving overwrite."""
-    work_dir = os.path.join(root, "fake_work", "ab", "cdef1234567890")
-    os.makedirs(work_dir, exist_ok=True)
-    src_datasets_path = os.path.join(analysis_dir, "aggregate", "nextclade", "nextclade-dataset-versions.csv")
-    with open(src_datasets_path, "r") as f:
-        datasets_content = f.read()
-    _write(os.path.join(work_dir, "nextclade-tsv-outputs.csv"), datasets_content)
-
-    log_path = os.path.join(analysis_dir, f"{RUN_ID}_nf-flu_nextflow.log")
-    # NOTE: extract_workdirs()'s regex captures `[^\s]+` after "workDir: ",
-    # which is greedy and would swallow a trailing "]" if there's no space
-    # before it. Add a trailing space so the captured path is clean, matching
-    # the happy path this mechanism is meant to exercise (it's being retired
-    # in the refactor regardless).
-    log_line = (
-        "Jan-01 00:00:00.000 [Task submitter] DEBUG n.processor.TaskProcessor - "
-        "Task completed > TaskHandler[jobId: null; id: 1; "
-        "name: NFCORE_FLU:ILLUMINA:NEXTCLADE:AGG_NEXTCLADE_TSV (1); "
-        f"status: COMPLETED; exit: 0; error: -; workDir: {work_dir} ]\n"
-    )
-    _write(log_path, log_line)

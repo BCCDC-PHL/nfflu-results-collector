@@ -1,10 +1,12 @@
 """Maintenance script: regenerates tests/fixtures/golden_run_summary.csv by
 running the collector against the synthetic fixture.
 
-Only run this deliberately, when a change to expected_columns or collection
-logic is an *intentional*, reviewed change to the output contract -- not as
-part of routine development. The golden-output test (test_golden_output.py)
-exists specifically to catch *unintentional* drift.
+The golden file is a snapshot of what the collector currently produces for
+the synthetic fixture. Only regenerate it deliberately, when a change to
+expected_columns or collection logic is an *intentional*, reviewed change to
+the output contract -- not as part of routine development, and review the
+resulting diff. The golden-output test (test_golden_output.py) exists
+specifically to catch *unintentional* drift.
 
 Usage (from repo root):
     python -m tests.regenerate_golden
