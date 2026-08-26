@@ -75,6 +75,14 @@ def _sample_path(analysis_dir, sample, *parts):
     return os.path.join(analysis_dir, sample, *parts)
 
 
+def _sequence_id(sample, segment):
+    """Consensus FASTA header and Nextclade seqName, as nf-flu writes them:
+    "<sample>_<n>_<GENE>" (bcftools.nf sets sequenceID = "${sample}_${segment}",
+    and segment labels are "4_HA", "7_M", ... -- see IAV_SEGMENT_NAMES in
+    nf-flu's bin/subtyping_report.py)."""
+    return f"{sample}_{SEGMENT_NUMBER[segment]}_{segment}"
+
+
 def build_fixture(root):
     """Build the fixture tree under `root` (a Path). Returns the nf-flu
     output directory path (i.e. the `analysis_dir` to pass to the collector)."""
@@ -141,7 +149,7 @@ def _build_consensus(analysis_dir):
         records = []
         for seg, n_count in seg_ns.items():
             seq = ("N" * n_count) + ("A" * (100 - n_count))
-            records.append(f">{sample}_{seg}\n{seq}\n")
+            records.append(f">{_sequence_id(sample, seg)}\n{seq}\n")
         _write(path, "".join(records))
 
 
@@ -185,7 +193,7 @@ def _build_nextclade(analysis_dir):
         clade, subclade, legacy, qc_score, qc_status, ha_score = clade_by_sample[sample]
         rows = ["\t".join(columns)]
         for seg in SEGMENTS:
-            seq_name = f"{sample}_{seg}"
+            seq_name = _sequence_id(sample, seg)
             if seg == "HA":
                 score = ha_score
             else:
