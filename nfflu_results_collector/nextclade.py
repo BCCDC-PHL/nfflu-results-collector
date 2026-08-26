@@ -1,10 +1,16 @@
 import os
 import json
+import re
 import pandas as pd
 from glob import glob
 import logging
 
 import nfflu_results_collector.config as config_module
+
+# Trailing segment label on an nf-flu sequence ID: "<sample>_4_HA" -> "<sample>".
+# Stripped rather than splitting on the first underscore, because sample IDs
+# from external partner batches contain underscores themselves.
+SEGMENT_SUFFIX_PATTERN = re.compile(r'_\d_[A-Za-z0-9]+$')
 
 
 class Nextclade_Results_Collector:
@@ -26,7 +32,7 @@ class Nextclade_Results_Collector:
         return self.config.get("nextclade", {}).get("legacy_clade", False)
 
     def _filter_nextclade_df(self, df):
-        df.insert(0, 'sample', df['seqName'].str.split('_').str[0])
+        df.insert(0, 'sample', df['seqName'].str.replace(SEGMENT_SUFFIX_PATTERN, '', regex=True))
         df = df.dropna(subset=['clade'])
 
         if self._ha_only():
@@ -86,9 +92,11 @@ class Nextclade_Results_Collector:
             datasets_dict = {}
             logging.warning(json.dumps({"event_type": "no_nextclade_datasets_data", "path": datasets_csv_path}))
 
-        # One nextclade directory per sample: <analysis_dir>/<sample>/nextclade
+        # One nextclade directory per sample: <analysis_dir>/<sample>/nextclade.
+        # The run-level nextclade_dir matches that same glob, so exclude it.
+        datasets_dir = os.path.abspath(os.path.join(analysis_dir, paths["nextclade_dir"]))
         sample_dirs = [d for d in glob(os.path.join(analysis_dir, paths["nextclade_tsvs"].format(sample='*')))
-                       if os.path.isdir(d)]
+                       if os.path.isdir(d) and os.path.abspath(d) != datasets_dir]
 
         logging.info(json.dumps({"event_type": "sample_directories_found", "sample_directory_count": len(sample_dirs)}))
 

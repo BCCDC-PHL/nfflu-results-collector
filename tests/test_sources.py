@@ -4,7 +4,7 @@ import pytest
 import nfflu_results_collector.config as config
 import nfflu_results_collector.schema as schema
 import nfflu_results_collector.sources as sources
-from tests.fixture_builder import SAMPLE_STANDARD, SAMPLE_CONTROL, SAMPLE_SALVAGE
+from tests.fixture_builder import SAMPLE_STANDARD, SAMPLE_CONTROL, SAMPLE_SALVAGE, SAMPLE_EXTERNAL
 
 
 @pytest.fixture
@@ -123,3 +123,15 @@ def test_nextclade_source_picks_ha_only_and_attaches_dataset_metadata(analysis_d
     assert row["Nextclade_dataset_name"] == "nextstrain/flu/h3n2/ha/EPI1857216"
     # exactly one row per sample (HA-only filter + alignment-score max)
     assert df["sample"].is_unique
+
+
+def test_nextclade_source_keeps_sample_ids_containing_underscores(analysis_dir, cfg):
+    """Sequence IDs are "<sample>_<n>_<GENE>", so deriving the sample by
+    splitting on the first underscore truncated external partner IDs,
+    which contain underscores themselves, and every Nextclade column for
+    those samples silently came out null."""
+    df = sources._parse_nextclade(str(analysis_dir), cfg)
+    assert SAMPLE_EXTERNAL in set(df["sample"])
+    row = df.set_index("sample").loc[SAMPLE_EXTERNAL]
+    assert row["Nextclade_clade"] == "2.3.4.4b"
+    assert row["Nextclade_subclade"] == "2.3.4.4b.5"

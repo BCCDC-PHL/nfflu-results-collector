@@ -3,12 +3,15 @@
 Pure-Python (no pytest import) so it can be reused both by the pytest
 fixture in conftest.py and by tests/regenerate_golden.py.
 
-Three samples exercise the three sample-ID parsing branches:
+Four samples exercise the sample-ID parsing branches:
   - SAMPLE_STANDARD: standard "CID-Plate-Index-Well" format
   - SAMPLE_CONTROL:  control format, and partial/missing data (only
     2 of 8 segments sequenced, no subtype call, no cleavage, no genoflu)
   - SAMPLE_SALVAGE:  fails both standard/control regexes (lowercase CID),
     falls all the way through to the whole-name CID fallback
+  - SAMPLE_EXTERNAL: external partner batch, whose ID contains underscores
+    (auto-nfflu's sample_id_before_first_period) -- these must survive
+    sequence-ID parsing, which splits on underscores
 """
 import os
 import textwrap
@@ -19,8 +22,11 @@ ANALYSIS_TYPE = "short"
 SAMPLE_STANDARD = "C0000000001-2024-A1-A01"
 SAMPLE_CONTROL = "NTC20240101-Control-2024-B2-B02"
 SAMPLE_SALVAGE = "c0000000003-2024-D4-D04"
+SAMPLE_EXTERNAL = "PARTNER_BATCH7_0004"
 
-SAMPLE_IDS = [SAMPLE_STANDARD, SAMPLE_CONTROL, SAMPLE_SALVAGE]
+# Sorted, because auto-discovery (tools.collect_nfflu_fastq_names) returns
+# sorted names and tests compare that path against this list.
+SAMPLE_IDS = [SAMPLE_STANDARD, SAMPLE_CONTROL, SAMPLE_EXTERNAL, SAMPLE_SALVAGE]
 
 SEGMENTS = ["PB2", "PB1", "PA", "HA", "NP", "NA", "M", "NS"]
 SEGMENT_NUMBER = {seg: i + 1 for i, seg in enumerate(SEGMENTS)}
@@ -41,6 +47,9 @@ CONSENSUS_N_COUNTS = {
     SAMPLE_SALVAGE: {
         "PB2": 5, "PB1": 6, "PA": 7, "HA": 2, "NP": 9, "NA": 3, "M": 15, "NS": 8,
     },
+    SAMPLE_EXTERNAL: {
+        "PB2": 3, "PB1": 4, "PA": 6, "HA": 1, "NP": 2, "NA": 5, "M": 11, "NS": 4,
+    },
 }
 
 READS_MAPPED = {
@@ -55,12 +64,17 @@ READS_MAPPED = {
         "PB2": 41000, "PB1": 40500, "PA": 38000, "HA": 47000,
         "NP": 44000, "NA": 42000, "M": 59000, "NS": 51000,
     },
+    SAMPLE_EXTERNAL: {
+        "PB2": 33000, "PB1": 32500, "PA": 31000, "HA": 39000,
+        "NP": 36000, "NA": 34000, "M": 48000, "NS": 43000,
+    },
 }
 
 NEXTCLADE_DATASET = {
     SAMPLE_STANDARD: ("nextstrain/flu/h5nx/ha/EPI2101974", "2025-11-10--12-00-00Z"),
     SAMPLE_CONTROL: ("nextstrain/flu/h5nx/ha/EPI2101974", "2025-11-10--12-00-00Z"),
     SAMPLE_SALVAGE: ("nextstrain/flu/h3n2/ha/EPI1857216", "2025-11-04--15-46-13Z"),
+    SAMPLE_EXTERNAL: ("nextstrain/flu/h5nx/ha/EPI2101974", "2025-11-10--12-00-00Z"),
 }
 
 
@@ -121,12 +135,14 @@ def _build_fastq(analysis_dir):
 
 
 def _build_subtyping_report(analysis_dir):
-    # S1 -> H5N1, S3 -> H3N2. S2 (control) intentionally has no subtype call.
+    # S1 -> H5N1, S3 -> H3N2, S4 -> H5N1. S2 (control) intentionally has no
+    # subtype call.
     path = os.path.join(analysis_dir, "aggregate", "bcftools", "subtyping_report", "subtype_results.csv")
     content = textwrap.dedent(f"""\
         ,sample,Genotype,H_type,N_type
         0,{SAMPLE_STANDARD},3,5,1
         1,{SAMPLE_SALVAGE},7,3,2
+        2,{SAMPLE_EXTERNAL},3,5,1
     """)
     _write(path, content)
 
@@ -174,6 +190,10 @@ def _build_genoflu(analysis_dir):
             "A1.2",
             "PB2: B1, PB1: A2, PA: A2, HA: A2, NP: A2, NA: B1, MP: A2, NS: A2",
         ),
+        SAMPLE_EXTERNAL: (
+            "B3.13",
+            "PB2: C1, PB1: C1, PA: C1, HA: C1, NP: C1, NA: C1, MP: C1, NS: C1",
+        ),
     }
     for sample, (genotype, seg_list) in genotypes.items():
         path = _sample_path(analysis_dir, sample, "genoflu", f"{sample}.genoflu.tsv")
@@ -188,6 +208,7 @@ def _build_nextclade(analysis_dir):
         SAMPLE_STANDARD: ("2.3.4.4b", "2.3.4.4b.1", "2.3.4.4b", "98.5", "good", "1850.0"),
         SAMPLE_CONTROL: ("2.3.4.4b", "2.3.4.4b.1", "2.3.4.4b", "72.0", "mediocre", "1600.0"),
         SAMPLE_SALVAGE: ("3C.2a1b.2a.2", "3C.2a1b.2a.2a", "3c2.A1b", "99.1", "good", "1920.0"),
+        SAMPLE_EXTERNAL: ("2.3.4.4b", "2.3.4.4b.5", "2.3.4.4b", "97.2", "good", "1810.0"),
     }
     for sample in SAMPLE_IDS:
         clade, subclade, legacy, qc_score, qc_status, ha_score = clade_by_sample[sample]
