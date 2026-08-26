@@ -1,7 +1,21 @@
 import json
+import os
 
 import nfflu_results_collector.config as config
 import nfflu_results_collector.schema as schema
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def test_template_matches_packaged_defaults():
+    """config-template.json is a copy users edit. It drifted out of sync
+    with the packaged defaults once already, leaving paths that matched no
+    real nf-flu layout, so the two are pinned together here."""
+    with open(os.path.join(REPO_ROOT, "config-template.json")) as f:
+        template = json.load(f)
+    with open(os.path.join(REPO_ROOT, "nfflu_results_collector", "config", "defaults.json")) as f:
+        defaults = json.load(f)
+    assert template == defaults
 
 
 def test_load_default_config_has_expected_shape():
