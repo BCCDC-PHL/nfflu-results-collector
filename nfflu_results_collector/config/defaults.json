@@ -1,6 +1,5 @@
 {
   "auto-nfflu": false,
-  "strict_schema": false,
   "segments": ["PB2", "PB1", "PA", "HA", "NP", "NA", "M", "NS"],
   "tree_pass": {
     "threshold": 90
