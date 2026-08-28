@@ -18,6 +18,15 @@ SEGMENT_PATTERN = re.compile(r'Segment_\d+_([A-Za-z0-9]+)\.')
 CLEAVAGE_RANGE_PATTERN = re.compile(r'\|(\d+)\.\.(\d+)')
 SEGMENTS = ['PB2', 'PB1', 'PA', 'HA', 'NP', 'NA', 'M', 'NS']
 
+# Mirrors pileup_tools.mixture_detector.MixtureDetector.COLUMN_NAMES, which
+# writes the per-sample files this report concatenates.
+MIXTURE_COLUMNS = [
+    'sample_name', 'subtype', 'mixture_present', 'ha_mixture_present', 'na_mixture_present',
+    'primary_ha_subtype', 'primary_ha_reads', 'secondary_ha_subtype', 'secondary_ha_reads', 'ha_read_ratio',
+    'primary_na_subtype', 'primary_na_reads', 'secondary_na_subtype', 'secondary_na_reads', 'na_read_ratio',
+    'initial_reads', 'pass_qc_reads', 'fail_qc_reads', 'match_reads', 'nomatch_reads',
+]
+
 class Nfflu_Results_Collector:
     def __init__(self, user_config=None):
         if user_config is None:
@@ -25,13 +34,21 @@ class Nfflu_Results_Collector:
         self.config = config.load_default_config()
         self.config.update(user_config)
 
-    def collect_run_summary(self, analysis_dir, output_summary_file):
-        """Main method to collect all results and merge them into a single CSV."""
-        
+    def collect_run_summary(self, analysis_dir, output_summary_file, *, run_id=None, sample_ids=None):
+        """Main method to collect all results and merge them into a single CSV.
+
+        `run_id` and `sample_ids` are derived from `analysis_dir` when not
+        given. A caller that already knows them (auto-nfflu, which orchestrated
+        the run) can pass them instead.
+        """
+
         output_summary_file = output_summary_file.rstrip(os.sep)
-        
+
         # Step 1: Collect sample names and parse them
-        if self.config.get('auto-nfflu', False):
+        if sample_ids is not None:
+            sample_names = list(sample_ids)
+            logging.info(json.dumps({"event_type": "samples_collected", "sample_count": len(sample_names), "source": "caller"}))
+        elif self.config.get('auto-nfflu', False):
             sample_names = auto.collect_auto_nfflu_names(analysis_dir)
             logging.info(json.dumps({"event_type": "samples_collected", "sample_count": len(sample_names), "source": "auto_nfflu_start_samplesheet"}))
         else:
@@ -83,12 +100,15 @@ class Nfflu_Results_Collector:
         samples_df['FastQID'] = samples_df['sample']
 
         # Add Run column
-        run_parts = analysis_dir.rstrip(os.sep).split(os.sep)
-        if len(run_parts) >= 3:
-            samples_df['Run'] = run_parts[-3]
+        if run_id is not None:
+            samples_df['Run'] = run_id
         else:
-            logging.warning(json.dumps({"event_type": "run_name_extraction_failed", "analysis_dir": analysis_dir}))
-            samples_df['Run'] = pd.NA
+            run_parts = analysis_dir.rstrip(os.sep).split(os.sep)
+            if len(run_parts) >= 3:
+                samples_df['Run'] = run_parts[-3]
+            else:
+                logging.warning(json.dumps({"event_type": "run_name_extraction_failed", "analysis_dir": analysis_dir}))
+                samples_df['Run'] = pd.NA
         
         # Step 2: Collect subtype results
         subtype_df = self._collect_subtype(analysis_dir)
@@ -180,6 +200,15 @@ class Nfflu_Results_Collector:
             if not pipeline_status_df.empty:
                 output_df = output_df.merge(pipeline_status_df, left_on='FastQID', right_on='ID', how='left')
                 output_df = output_df.drop(columns=['ID'])
+
+            # Only the pipelines in this run's chain produce a status column, so
+            # nanopore and Illumina would otherwise disagree on the header. Pad
+            # to the full set, leaving pipelines that did not run blank.
+            status_columns = self.config.get('status_columns', [])
+            for col in status_columns:
+                if col not in output_df.columns:
+                    output_df[col] = None
+            output_df = output_df[[c for c in output_df.columns if c not in status_columns] + status_columns]
 
         # Step 7: Write to CSV
         output_summary_dir = os.path.dirname(output_summary_file)
@@ -423,43 +452,71 @@ class Nfflu_Results_Collector:
 
         nextclade_df = nextclade_rc.collect_nextclade_results(nextclade_path)
 
+        # Returns None when no sample produced a usable clade call. auto-nfflu
+        # calls this before collect_run_summary, so crashing here would stop the
+        # run summary ever being written.
+        if nextclade_df is None:
+            logging.warning(json.dumps({"event_type": "nextclade_results_empty", "analysis_dir": analysis_dir}))
+            nextclade_df = pd.DataFrame()
+
         nextclade_df.to_csv(nextclade_output_path, sep='\t', index=False)
         logging.info(json.dumps({"event_type": "nextclade_results_written", "output_path": nextclade_output_path}))
 
-    def collect_mixture_report(self, analysis_dir, output_mixture_file):
-        """Collect mixture report data for all samples in the analysis directory and concatenate them into a single output file."""
-        # Pattern: ${analysis_run_dir}/mixture_analysis/${sample_name}_mixture_report.tsv
+    def collect_mixture_report(self, analysis_dir, output_mixture_file, *, sample_ids=None):
+        """Collect per-sample mixture reports into one file, one row per sample.
+
+        Samples with no mixture report get a row of NAs rather than being
+        dropped, and the file is written even when no report exists at all,
+        because downstream databases ingest it unconditionally.
+        """
+        if sample_ids is None:
+            if self.config.get('auto-nfflu', False):
+                sample_ids = auto.collect_auto_nfflu_names(analysis_dir)
+            else:
+                sample_ids = tools.collect_nfflu_fastq_names(analysis_dir)
+
         mixture_files = glob.glob(os.path.join(analysis_dir, "mixtures", "*", "*_mixtures.csv"))
-        
+
         dfs = []
 
         for mixture_path in mixture_files:
             sample_name = os.path.basename(mixture_path).replace('_mixtures.csv', '')
-            
+
             try:
                 df = pd.read_csv(mixture_path)
-
-                # columns = ['FastQID', 'mixture_present', 'ha_mixture_present', 'na_mixture_present', 'ha_read_ratio', 'na_read_ratio']
 
                 if df.shape[0] != 1:
                     logging.warning(json.dumps({"event_type": "unexpected_mixture_report_rows", "sample_name": sample_name, "row_count": df.shape[0]}))
                     continue
 
                 dfs.append(df)
-                
+
             except Exception as e:
                 logging.warning(json.dumps({"event_type": "mixture_report_read_error", "sample_name": sample_name, "mixture_path": mixture_path, "error": str(e)}))
                 continue
-        
+
         if not dfs:
             logging.warning(json.dumps({"event_type": "no_valid_mixture_reports_found"}))
-            return 
 
-        # Concatenate all dataframes and return the result
-        final_df = pd.concat(dfs, ignore_index=True).rename(columns={'sample_name':'FastQID'})
+        collected_df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame(columns=MIXTURE_COLUMNS)
+        collected_df = collected_df.rename(columns={'sample_name': 'FastQID'})
+
+        final_df = pd.DataFrame({'FastQID': list(sample_ids)}).merge(collected_df, on='FastQID', how='left')
+        final_df = final_df.reindex(columns=['FastQID'] + [c for c in MIXTURE_COLUMNS if c != 'sample_name'])
+
+        # Rows added for samples with no report carry NaN, which would otherwise
+        # widen the integer count columns to float and write 17767 as 17767.0.
+        # Ratio columns are genuinely floats and must keep their dtype.
+        integer_columns = [c for c in collected_df.columns if pd.api.types.is_integer_dtype(collected_df[c])]
+        final_df[integer_columns] = final_df[integer_columns].astype('Int64')
+
+        output_mixture_dir = os.path.dirname(output_mixture_file)
+        if output_mixture_dir != '' and not os.path.exists(output_mixture_dir):
+            os.makedirs(output_mixture_dir, exist_ok=True)
+
         final_df.to_csv(output_mixture_file, index=False)
-        logging.info(json.dumps({"event_type": "mixture_report_written", "output_file": output_mixture_file}))
-        
+        logging.info(json.dumps({"event_type": "mixture_report_written", "output_file": output_mixture_file, "sample_count": len(final_df), "with_data": len(collected_df)}))
+
         return 
 
     def symlink_consensus_fastas(self, analysis_dir, output_dir):

@@ -16,6 +16,10 @@
     "GenoFLU_NS", "GenoFLU_PA", "GenoFLU_PB1", "GenoFLU_PB2",
     "nextclade_version", "genoflu_version", "nfflu_version"
   ],
+  "status_columns": [
+    "status_cutadapt-nf", "status_basic-sequence-qc", "status_downsample-reads",
+    "status_basic-nanopore-qc", "status_nf-flu"
+  ],
   "auto-nfflu": false,
   "legacy-clade": false
 }

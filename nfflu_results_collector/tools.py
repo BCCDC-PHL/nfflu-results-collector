@@ -84,6 +84,31 @@ def collect_nfflu_fastq_names(analysis_dir):
     return sorted(list(sample_names))
 
 
+def detect_platform(analysis_dir):
+    """Return 'nanopore' or 'illumina' for an nf-flu output directory.
+
+    nf-flu writes pipeline_info/samplesheet.fixed.csv under both platforms, but
+    with different headers: 'sample,barcode' for nanopore and
+    'sample,fastq1,fastq2,single_end' for Illumina. Falls back to 'illumina'
+    when the file is missing or unrecognised.
+    """
+    samplesheet_path = os.path.join(analysis_dir, "pipeline_info", "samplesheet.fixed.csv")
+
+    try:
+        with open(samplesheet_path, 'r') as f:
+            header = f.readline().strip()
+    except OSError:
+        logging.warning(json.dumps({"event_type": "platform_samplesheet_not_found", "samplesheet_path": samplesheet_path}))
+        return "illumina"
+
+    fields = [field.strip() for field in header.split(',')]
+    platform = "nanopore" if "barcode" in fields else "illumina"
+
+    logging.info(json.dumps({"event_type": "platform_detected", "platform": platform, "header": header}))
+
+    return platform
+
+
 def extract_workdirs(log_file_path: str) -> dict:
     """
     Extract all workDirs from a Nextflow log file, returning a dictionary mapping process names to workDir paths.

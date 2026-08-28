@@ -3,7 +3,12 @@ import json
 import logging
 import pandas as pd 
 from glob import glob
-from nfflu_results_collector.tools import glob_single, collect_nfflu_fastq_names
+from nfflu_results_collector.tools import glob_single, collect_nfflu_fastq_names, detect_platform
+
+
+# nf-flu publishes BLAST output one directory deeper on Illumina than on
+# nanopore; every other stage path below is the same for both platforms.
+BLAST_DIR_BY_PLATFORM = {'illumina': os.path.join('blast', 'blastn'), 'nanopore': 'blast'}
 
 
 def collect_auto_nfflu_names(nfflu_results_dir):
@@ -21,15 +26,17 @@ def collect_auto_nfflu_names(nfflu_results_dir):
 
 
 def _compute_nfflu_status(results_dir):
-    
+
+    blast_dir = BLAST_DIR_BY_PLATFORM[detect_platform(results_dir)]
+
     required_files = [
-        ('irma', os.path.join(results_dir, 'irma', "*.irma.consensus.fasta"), lambda x: x.split(".")[0]),                # 2 
-        ('blastn_ref', os.path.join(results_dir, 'blast', 'blastn', 'irma', "*blastn.txt"), lambda x: x.split(".")[0]),  # 3 
-        ('reference', os.path.join(results_dir, 'reference_sequences', '*'), lambda x : x),                              # 4 
+        ('irma', os.path.join(results_dir, 'irma', "*.irma.consensus.fasta"), lambda x: x.split(".")[0]),                # 2
+        ('blastn_ref', os.path.join(results_dir, blast_dir, 'irma', "*blastn.txt"), lambda x: x.split(".")[0]),          # 3
+        ('reference', os.path.join(results_dir, 'reference_sequences', '*'), lambda x : x),                              # 4
         ('minimap2', os.path.join(results_dir, 'mapping', "*"), lambda x : x),
         ('freebayes', os.path.join(results_dir, 'variants', "*"), lambda x : x),
         ('bcftools', os.path.join(results_dir, 'consensus', 'bcftools', "*.consensus.fasta"), lambda x: x.split(".")[0]),
-        ('blastn_subtype', os.path.join(results_dir, 'blast', 'blastn', 'consensus', "*.blastn.txt"), lambda x: x.split(".")[0]),
+        ('blastn_subtype', os.path.join(results_dir, blast_dir, 'consensus', "*.blastn.txt"), lambda x: x.split(".")[0]),
         ('mixture', os.path.join(results_dir, 'mixtures', "*", "*_mixtures.txt"), lambda x: x.split("_")[0]),
     ]
 
