@@ -504,6 +504,12 @@ class Nfflu_Results_Collector:
         final_df = pd.DataFrame({'FastQID': list(sample_ids)}).merge(collected_df, on='FastQID', how='left')
         final_df = final_df.reindex(columns=['FastQID'] + [c for c in MIXTURE_COLUMNS if c != 'sample_name'])
 
+        # Rows added for samples with no report carry NaN, which would otherwise
+        # widen the integer count columns to float and write 17767 as 17767.0.
+        # Ratio columns are genuinely floats and must keep their dtype.
+        integer_columns = [c for c in collected_df.columns if pd.api.types.is_integer_dtype(collected_df[c])]
+        final_df[integer_columns] = final_df[integer_columns].astype('Int64')
+
         output_mixture_dir = os.path.dirname(output_mixture_file)
         if output_mixture_dir != '' and not os.path.exists(output_mixture_dir):
             os.makedirs(output_mixture_dir, exist_ok=True)
