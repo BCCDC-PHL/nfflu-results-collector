@@ -4,18 +4,19 @@ import json
 import logging
 import os
 from Bio import SeqIO
-import pandas as pd 
-import re
+import pandas as pd
 
 
 pd.set_option('future.no_silent_downcasting', True)
 
-def calculate_completeness(fasta_path):
-    """Calculate completeness of sequences in a FASTA file."""
 
-    segments = ['PB2', 'PB1', 'PA', 'HA', 'NP', 'NA', 'M', 'NS']
+def calculate_completeness(fasta_path, segments):
+    """Calculate completeness (% non-N bases) per segment of a consensus
+    FASTA file. `segments` is the caller's canonical segment list (see
+    config["segments"]) -- the single source of truth for which segment
+    names are recognized, rather than a copy hardcoded in this module."""
 
-    completeness = dict(zip(segments, [0]*len(segments)))
+    completeness = dict(zip(segments, [0] * len(segments)))
 
     for record in SeqIO.parse(fasta_path, "fasta"):
         segment = record.id.split('_')[-1]
@@ -57,19 +58,15 @@ def glob_single(glob_expr):
     return files[0].rstrip(os.sep)
 
 
-def collect_nfflu_fastq_names(analysis_dir):
+def collect_nfflu_fastq_names(analysis_dir, fastq_dir):
     """Extract sample names from fastq directory, handling both Nanopore and Illumina paired-end naming."""
     analysis_dir = os.path.abspath(analysis_dir)
     sample_names = set()  # Using a set to avoid duplicates from paired-end reads
-    fastq_dir = os.path.join(analysis_dir, "fastq")
-    
-    if not os.path.exists(fastq_dir):
-        return []
-    
-    pattern = os.path.join(fastq_dir, "*.merged.fastq.gz")
+
+    pattern = os.path.join(analysis_dir, fastq_dir.format(sample="*"), "*.merged.fastq.gz")
     for filepath in glob(pattern):
         filename = os.path.basename(filepath)
-        
+
         # Handle Illumina paired-end reads with _*1 or _*2 pattern
         if '_1.merged.fastq.gz' in filename or '_2.merged.fastq.gz' in filename:
             # This is an Illumina paired-end read
@@ -82,27 +79,3 @@ def collect_nfflu_fastq_names(analysis_dir):
             sample_names.add(sample_name)
 
     return sorted(list(sample_names))
-
-
-def extract_workdirs(log_file_path: str) -> dict:
-    """
-    Extract all workDirs from a Nextflow log file, returning a dictionary mapping process names to workDir paths.
-    
-    Args:
-        log_file_path: Path to the Nextflow log file
-    
-    Returns:
-        dict: Mapping of process names to their corresponding workDir paths.
-    """
-    pattern = r'Task completed.+name: ([^;]+).+workDir: ([^\s]+)'
-    workdirs = {}
-    
-    with open(log_file_path, 'r') as f:
-        for line in f:
-            match = re.search(pattern, line)
-            if match:
-                name = match.group(1).strip()
-                workdir = match.group(2).strip()
-                
-                workdirs[name] = workdir
-    return workdirs
