@@ -54,14 +54,14 @@ CANONICAL_COLUMNS = (
 )
 
 
-def order_and_validate(df, schema=None, *, strict=False):
+def order_and_validate(df, schema=None):
     """Reindex `df` to `schema`'s column order (default CANONICAL_COLUMNS).
 
     Columns declared in the schema but absent from `df` become all-null.
     Columns present in `df` but NOT declared in the schema are never
     silently dropped: they're appended after the declared schema (stable
-    order) and a warning is logged. If `strict` is True, undeclared
-    columns raise instead of being appended.
+    order) and a warning is logged. auto-nfflu's status_* columns arrive
+    that way.
     """
     if schema is None:
         schema = CANONICAL_COLUMNS
@@ -73,8 +73,6 @@ def order_and_validate(df, schema=None, *, strict=False):
 
     extra = [col for col in df.columns if col not in schema]
     if extra:
-        if strict:
-            raise ValueError(f"Unexpected columns not declared in schema: {extra}")
         logging.warning(json.dumps({"event_type": "unexpected_columns_found", "columns": extra}))
 
     return df[schema + extra]

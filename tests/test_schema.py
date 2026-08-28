@@ -1,7 +1,6 @@
 import json
 
 import pandas as pd
-import pytest
 
 import nfflu_results_collector.schema as schema
 
@@ -22,12 +21,6 @@ def test_order_and_validate_appends_undeclared_columns_instead_of_dropping(caplo
     assert result["surprise"].tolist() == [42]
     events = [json.loads(r.message)["event_type"] for r in caplog.records]
     assert "unexpected_columns_found" in events
-
-
-def test_order_and_validate_strict_raises_on_undeclared_columns():
-    df = pd.DataFrame([{"a": 1, "surprise": 42}])
-    with pytest.raises(ValueError, match="surprise"):
-        schema.order_and_validate(df, schema=["a"], strict=True)
 
 
 def test_canonical_columns_have_no_duplicates():

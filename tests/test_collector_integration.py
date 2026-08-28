@@ -74,7 +74,7 @@ def test_auto_nfflu_mode_without_pipeline_status_file_still_succeeds(analysis_di
         str(analysis_dir), str(output_path), run_id=RUN_ID, sample_ids=list(SAMPLE_IDS)
     )
     df = pd.read_csv(output_path)
-    assert len(df) == 3
+    assert len(df) == len(SAMPLE_IDS)
     assert "status_nf-flu" not in df.columns
 
 

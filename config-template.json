@@ -1,6 +1,5 @@
 {
   "auto-nfflu": false,
-  "strict_schema": false,
   "segments": ["PB2", "PB1", "PA", "HA", "NP", "NA", "M", "NS"],
   "tree_pass": {
     "threshold": 90
@@ -10,8 +9,8 @@
     "legacy_clade": false
   },
   "paths": {
-    "fastq_dir": "fastq",
-    "subtype_results": "subtyping_report/subtype_results.csv",
+    "fastq_dir": "{sample}/fastq",
+    "subtype_results": "aggregate/bcftools/subtyping_report/subtype_results.csv",
     "idxstats": "{sample}/mapping/{sample}*.idxstats",
     "consensus_fasta": "{sample}/consensus/bcftools/{sample}.consensus.fasta",
     "cleavage": "{sample}/annotation/{sample}.cleavage.tsv",
@@ -19,7 +18,7 @@
     "mixtures": "{sample}/mixtures/{sample}_mixtures.csv",
     "nextclade_tsvs": "{sample}/nextclade",
     "software_versions": "pipeline_info/software_versions.yml",
-    "nextclade_dir": "nextclade",
+    "nextclade_dir": "aggregate/nextclade",
     "pipeline_status": "pipeline_status.csv"
   }
 }
