@@ -7,6 +7,7 @@ import pandas as pd
 
 import nfflu_results_collector.auto as auto
 import nfflu_results_collector.config as config
+import nfflu_results_collector.layouts as layouts
 import nfflu_results_collector.nextclade as nextclade
 import nfflu_results_collector.sample_id as sample_id
 import nfflu_results_collector.schema as schema
@@ -23,7 +24,7 @@ class Nfflu_Results_Collector:
             sample_ids = auto.collect_auto_nfflu_names(analysis_dir)
             logging.info(json.dumps({"event_type": "samples_collected", "sample_count": len(sample_ids), "source": "auto_nfflu_start_samplesheet"}))
         else:
-            sample_ids = tools.collect_nfflu_fastq_names(analysis_dir, self.config["paths"]["fastq_dir"])
+            sample_ids = tools.collect_nfflu_fastq_names(analysis_dir, self.config["layout"])
             logging.info(json.dumps({"event_type": "samples_collected", "sample_count": len(sample_ids), "source": "fastq_directory"}))
         return sample_ids
 
@@ -100,6 +101,9 @@ class Nfflu_Results_Collector:
         expected_columns = self.config.get('expected_columns', schema.CANONICAL_COLUMNS)
         output_df = schema.order_and_validate(output_df, expected_columns)
 
+        if self.config.get('auto-nfflu', False):
+            output_df = schema.pad_status_columns(output_df)
+
         output_summary_dir = os.path.dirname(output_summary_file)
         if output_summary_dir != '' and not os.path.exists(output_summary_dir):
             os.makedirs(output_summary_dir, exist_ok=True)
@@ -131,10 +135,17 @@ class Nfflu_Results_Collector:
         nextclade_df.to_csv(nextclade_output_path, sep='\t', index=False)
         logging.info(json.dumps({"event_type": "nextclade_results_written", "output_path": nextclade_output_path}))
 
-    def collect_mixture_report(self, analysis_dir, output_mixture_file):
-        """Collect mixture report data for all samples in the analysis directory and concatenate them into a single output file."""
-        mixture_glob = os.path.join(analysis_dir, self.config["paths"]["mixtures"].format(sample="*"))
-        mixture_files = glob.glob(mixture_glob)
+    def collect_mixture_report(self, analysis_dir, output_mixture_file, *, sample_ids=None):
+        """Collect per-sample mixture reports into one file, one row per sample.
+
+        Samples with no mixture report get a row of NAs rather than being
+        dropped, and the file is written even when no report exists at all,
+        because downstream databases ingest it unconditionally.
+        """
+        if sample_ids is None:
+            sample_ids = self._resolve_sample_ids(analysis_dir)
+
+        mixture_files = glob.glob(layouts.output_path(analysis_dir, "mixtures_csv", layout=self.config["layout"]))
 
         dfs = []
 
@@ -156,19 +167,30 @@ class Nfflu_Results_Collector:
 
         if not dfs:
             logging.warning(json.dumps({"event_type": "no_valid_mixture_reports_found"}))
-            return
 
-        final_df = pd.concat(dfs, ignore_index=True).rename(columns={'sample_name': 'FastQID'})
+        collected_df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame(columns=schema.MIXTURE_COLUMNS)
+        collected_df = collected_df.rename(columns={'sample_name': 'FastQID'})
+
+        final_df = pd.DataFrame({'FastQID': list(sample_ids)}).merge(collected_df, on='FastQID', how='left')
+        final_df = final_df.reindex(columns=['FastQID'] + [c for c in schema.MIXTURE_COLUMNS if c != 'sample_name'])
+
+        # Rows added for samples with no report carry NaN, which would otherwise
+        # widen the integer count columns to float and write 17767 as 17767.0.
+        integer_columns = [c for c in collected_df.columns if pd.api.types.is_integer_dtype(collected_df[c])]
+        final_df[integer_columns] = final_df[integer_columns].astype('Int64')
+
+        output_mixture_dir = os.path.dirname(output_mixture_file)
+        if output_mixture_dir != '' and not os.path.exists(output_mixture_dir):
+            os.makedirs(output_mixture_dir, exist_ok=True)
+
         final_df.to_csv(output_mixture_file, index=False)
-        logging.info(json.dumps({"event_type": "mixture_report_written", "output_file": output_mixture_file}))
-
-        return
+        logging.info(json.dumps({"event_type": "mixture_report_written", "output_file": output_mixture_file, "sample_count": len(final_df), "with_data": len(collected_df)}))
 
     def symlink_consensus_fastas(self, analysis_dir, output_dir):
         """Symlink consensus FASTA files to the output directory."""
         os.makedirs(output_dir, exist_ok=True)
 
-        pattern = os.path.join(analysis_dir, self.config["paths"]["consensus_fasta"].format(sample="*"))
+        pattern = layouts.output_path(analysis_dir, "bcftools_consensus", layout=self.config["layout"])
 
         for fasta_file in glob.glob(pattern):
             basename = os.path.basename(fasta_file)

@@ -54,6 +54,33 @@ CANONICAL_COLUMNS = (
 )
 
 
+# Mirrors pileup_tools.mixture_detector.MixtureDetector.COLUMN_NAMES, which
+# writes the per-sample files the mixture report concatenates.
+MIXTURE_COLUMNS = [
+    'sample_name', 'subtype', 'mixture_present', 'ha_mixture_present', 'na_mixture_present',
+    'primary_ha_subtype', 'primary_ha_reads', 'secondary_ha_subtype', 'secondary_ha_reads', 'ha_read_ratio',
+    'primary_na_subtype', 'primary_na_reads', 'secondary_na_subtype', 'secondary_na_reads', 'na_read_ratio',
+    'initial_reads', 'pass_qc_reads', 'fail_qc_reads', 'match_reads', 'nomatch_reads',
+]
+
+# Every pipeline that can contribute a status column. auto-nfflu's
+# pipeline_status.csv carries only the pipelines in one run's chain, so nanopore
+# and Illumina runs would otherwise disagree on the header.
+STATUS_COLUMNS = [
+    'status_cutadapt-nf', 'status_basic-sequence-qc', 'status_downsample-reads',
+    'status_basic-nanopore-qc', 'status_nf-flu',
+]
+
+
+def pad_status_columns(df):
+    """Add any missing status_* column as blank and move the whole set to the
+    end, so every run publishes the same header."""
+    for col in STATUS_COLUMNS:
+        if col not in df.columns:
+            df[col] = None
+    return df[[c for c in df.columns if c not in STATUS_COLUMNS] + STATUS_COLUMNS]
+
+
 def order_and_validate(df, schema=None):
     """Reindex `df` to `schema`'s column order (default CANONICAL_COLUMNS).
 

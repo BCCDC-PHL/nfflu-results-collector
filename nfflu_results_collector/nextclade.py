@@ -6,6 +6,7 @@ from glob import glob
 import logging
 
 import nfflu_results_collector.config as config_module
+import nfflu_results_collector.layouts as layouts
 
 # Trailing segment label on an nf-flu sequence ID: "<sample>_4_HA" -> "<sample>".
 # Stripped rather than splitting on the first underscore, because sample IDs
@@ -19,7 +20,7 @@ class Nextclade_Results_Collector:
         Initializes a Nextclade_Results_Collector instance.
 
         Falls back to the packaged defaults when no config is given, since
-        collect_nextclade_results resolves its input paths from config["paths"].
+        collect_nextclade_results resolves its input paths from the configured layout.
         """
         self.config = config
         if self.config is None:
@@ -82,8 +83,9 @@ class Nextclade_Results_Collector:
         if self._ha_only():
             logging.info(json.dumps({"event_type": "nextclade_ha_only_filtering_enabled"}))
 
-        paths = self.config["paths"]
-        datasets_csv_path = os.path.join(analysis_dir, paths["nextclade_dir"], 'nextclade-dataset-versions.csv')
+        layout = self.config["layout"]
+        datasets_dir = layouts.output_path(analysis_dir, "nextclade_dir", layout=layout)
+        datasets_csv_path = os.path.join(datasets_dir, 'nextclade-dataset-versions.csv')
 
         try:
             datasets_df = self._read_nextclade_datasets(datasets_csv_path)
@@ -92,18 +94,17 @@ class Nextclade_Results_Collector:
             datasets_dict = {}
             logging.warning(json.dumps({"event_type": "no_nextclade_datasets_data", "path": datasets_csv_path}))
 
-        # One nextclade directory per sample: <analysis_dir>/<sample>/nextclade.
-        # The run-level nextclade_dir matches that same glob, so exclude it.
-        datasets_dir = os.path.abspath(os.path.join(analysis_dir, paths["nextclade_dir"]))
-        sample_dirs = [d for d in glob(os.path.join(analysis_dir, paths["nextclade_tsvs"].format(sample='*')))
-                       if os.path.isdir(d) and os.path.abspath(d) != datasets_dir]
+        # One nextclade directory per sample. Under the per-sample layout the
+        # run-level nextclade_dir matches that same glob, so exclude it.
+        datasets_dir_abs = os.path.abspath(datasets_dir)
+        sample_dirs = [(sample, d) for sample, d in layouts.find_by_sample(analysis_dir, "nextclade_tsvs", layout=layout)
+                       if os.path.isdir(d) and os.path.abspath(d) != datasets_dir_abs]
 
         logging.info(json.dumps({"event_type": "sample_directories_found", "sample_directory_count": len(sample_dirs)}))
 
         collect_dfs = []
 
-        for sample_dir in sample_dirs:
-            sample_name = os.path.basename(os.path.dirname(sample_dir))
+        for sample_name, sample_dir in sample_dirs:
             logging.info(json.dumps({"event_type": "sample_processing_started", "sample_name": sample_name}))
 
             # Collect all nextclade.tsv files for this sample

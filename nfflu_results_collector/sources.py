@@ -25,6 +25,7 @@ import pandas as pd
 import yaml
 
 import nfflu_results_collector.auto as auto
+import nfflu_results_collector.layouts as layouts
 import nfflu_results_collector.nextclade as nextclade
 import nfflu_results_collector.schema as schema
 import nfflu_results_collector.tools as tools
@@ -42,7 +43,7 @@ class ResultSource:
 
 
 def _parse_subtype(analysis_dir, config):
-    subtype_file = os.path.join(analysis_dir, config["paths"]["subtype_results"])
+    subtype_file = layouts.output_path(analysis_dir, "subtype_results", layout=config["layout"])
 
     if not os.path.exists(subtype_file):
         return pd.DataFrame()
@@ -65,7 +66,7 @@ def _parse_subtype(analysis_dir, config):
 
 
 def _parse_idxstats(analysis_dir, sample, config):
-    pattern = os.path.join(analysis_dir, config["paths"]["idxstats"].format(sample=sample))
+    pattern = layouts.output_path(analysis_dir, "idxstats", sample=sample, layout=config["layout"])
     segments = config["segments"]
 
     result = {}
@@ -103,7 +104,7 @@ def _parse_idxstats(analysis_dir, sample, config):
 
 
 def _parse_consensus_completeness(analysis_dir, sample, config):
-    fasta_path = os.path.join(analysis_dir, config["paths"]["consensus_fasta"].format(sample=sample))
+    fasta_path = layouts.output_path(analysis_dir, "bcftools_consensus", sample=sample, layout=config["layout"])
     segments = config["segments"]
 
     if not os.path.exists(fasta_path):
@@ -118,7 +119,7 @@ def _parse_consensus_completeness(analysis_dir, sample, config):
 
 
 def _parse_cleavage(analysis_dir, sample, config):
-    cleavage_file = os.path.join(analysis_dir, config["paths"]["cleavage"].format(sample=sample))
+    cleavage_file = layouts.output_path(analysis_dir, "cleavage", sample=sample, layout=config["layout"])
 
     result = {
         'HPAI_cleave_start': None,
@@ -150,7 +151,7 @@ def _parse_cleavage(analysis_dir, sample, config):
 
 
 def _parse_genotype(analysis_dir, sample, config):
-    genoflu_file = os.path.join(analysis_dir, config["paths"]["genoflu"].format(sample=sample))
+    genoflu_file = layouts.output_path(analysis_dir, "genoflu", sample=sample, layout=config["layout"])
     segments = config["segments"]
 
     result = {f"GenoFLU_{key}": None for key in ['Genotype'] + segments}
@@ -206,7 +207,7 @@ def _parse_nextclade(analysis_dir, config):
 
 
 def _parse_provenance(analysis_dir, config):
-    software_versions_path = os.path.join(analysis_dir, config["paths"]["software_versions"])
+    software_versions_path = layouts.output_path(analysis_dir, "software_versions", layout=config["layout"])
 
     result = {
         'genoflu_version': None,

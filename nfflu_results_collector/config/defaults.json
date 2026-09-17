@@ -1,5 +1,6 @@
 {
   "auto-nfflu": false,
+  "layout": "stage",
   "segments": ["PB2", "PB1", "PA", "HA", "NP", "NA", "M", "NS"],
   "tree_pass": {
     "threshold": 90
@@ -7,18 +8,5 @@
   "nextclade": {
     "ha_only": true,
     "legacy_clade": false
-  },
-  "paths": {
-    "fastq_dir": "{sample}/fastq",
-    "subtype_results": "aggregate/bcftools/subtyping_report/subtype_results.csv",
-    "idxstats": "{sample}/mapping/{sample}*.idxstats",
-    "consensus_fasta": "{sample}/consensus/bcftools/{sample}.consensus.fasta",
-    "cleavage": "{sample}/annotation/{sample}.cleavage.tsv",
-    "genoflu": "{sample}/genoflu/{sample}.genoflu.tsv",
-    "mixtures": "{sample}/mixtures/{sample}_mixtures.csv",
-    "nextclade_tsvs": "{sample}/nextclade",
-    "software_versions": "pipeline_info/software_versions.yml",
-    "nextclade_dir": "aggregate/nextclade",
-    "pipeline_status": "pipeline_status.csv"
   }
 }

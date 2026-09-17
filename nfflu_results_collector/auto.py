@@ -2,6 +2,8 @@ import os
 import json
 import logging
 import pandas as pd
+
+import nfflu_results_collector.layouts as layouts
 from nfflu_results_collector.tools import glob_single
 
 
@@ -35,7 +37,7 @@ def parse_pipeline_status(analysis_dir, config):
     one, keyed by sample ID. Returns an empty DataFrame if absent; the
     collector works standalone without it.
     """
-    status_path = os.path.join(analysis_dir, config["paths"]["pipeline_status"])
+    status_path = layouts.output_path(analysis_dir, "pipeline_status", layout=config["layout"])
 
     if not os.path.exists(status_path):
         return pd.DataFrame()

@@ -6,6 +6,8 @@ import os
 from Bio import SeqIO
 import pandas as pd
 
+import nfflu_results_collector.layouts as layouts
+
 
 pd.set_option('future.no_silent_downcasting', True)
 
@@ -58,12 +60,12 @@ def glob_single(glob_expr):
     return files[0].rstrip(os.sep)
 
 
-def collect_nfflu_fastq_names(analysis_dir, fastq_dir):
+def collect_nfflu_fastq_names(analysis_dir, layout=None):
     """Extract sample names from fastq directory, handling both Nanopore and Illumina paired-end naming."""
     analysis_dir = os.path.abspath(analysis_dir)
     sample_names = set()  # Using a set to avoid duplicates from paired-end reads
 
-    pattern = os.path.join(analysis_dir, fastq_dir.format(sample="*"), "*.merged.fastq.gz")
+    pattern = os.path.join(layouts.output_path(analysis_dir, "fastq_dir", layout=layout), "*.merged.fastq.gz")
     for filepath in glob(pattern):
         filename = os.path.basename(filepath)
 
