@@ -95,10 +95,8 @@ def _out(analysis_dir, name, layout, sample=None, *parts):
 
 def _sequence_id(sample, segment):
     """Consensus FASTA header and Nextclade seqName, as nf-flu writes them:
-    "<sample>_<n>_<GENE>" (bcftools.nf sets sequenceID = "${sample}_${segment}",
-    and segment labels are "4_HA", "7_M", ... -- see IAV_SEGMENT_NAMES in
-    nf-flu's bin/subtyping_report.py)."""
-    return f"{sample}_{SEGMENT_NUMBER[segment]}_{segment}"
+    "<sample>_segment<n>_<GENE>"."""
+    return f"{sample}_segment{SEGMENT_NUMBER[segment]}_{segment}"
 
 
 def build_fixture(root, layout="stage"):

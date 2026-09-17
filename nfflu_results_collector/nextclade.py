@@ -8,10 +8,10 @@ import logging
 import nfflu_results_collector.config as config_module
 import nfflu_results_collector.layouts as layouts
 
-# Trailing segment label on an nf-flu sequence ID: "<sample>_4_HA" -> "<sample>".
-# Stripped rather than splitting on the first underscore, because sample IDs
-# from external partner batches contain underscores themselves.
-SEGMENT_SUFFIX_PATTERN = re.compile(r'_\d_[A-Za-z0-9]+$')
+# Trailing segment label on an nf-flu sequence ID: "<sample>_segment4_HA" ->
+# "<sample>". Stripped rather than splitting on the first underscore, because
+# sample IDs from external partner batches contain underscores themselves.
+SEGMENT_SUFFIX_PATTERN = re.compile(r'_(?:segment)?\d+_[A-Za-z0-9]+$')
 
 
 class Nextclade_Results_Collector:
