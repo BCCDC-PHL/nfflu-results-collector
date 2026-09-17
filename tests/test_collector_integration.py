@@ -5,7 +5,8 @@ import pandas as pd
 import pytest
 
 from nfflu_results_collector.collector import Nfflu_Results_Collector
-from tests.fixture_builder import RUN_ID, SAMPLE_IDS, SAMPLE_STANDARD, SAMPLE_CONTROL, SAMPLE_SALVAGE
+from nfflu_results_collector.schema import STATUS_COLUMNS
+from tests.fixture_builder import build_fixture, RUN_ID, SAMPLE_IDS, SAMPLE_STANDARD, SAMPLE_CONTROL, SAMPLE_SALVAGE
 
 GOLDEN_PATH = os.path.join(os.path.dirname(__file__), "fixtures", "golden_run_summary.csv")
 
@@ -67,7 +68,8 @@ def test_auto_nfflu_mode_merges_pipeline_status_columns(analysis_dir, tmp_path):
 
 def test_auto_nfflu_mode_without_pipeline_status_file_still_succeeds(analysis_dir, tmp_path):
     """pipeline_status.csv is optional -- the collector must not crash if
-    the orchestrator didn't write one (e.g. running the CLI by hand)."""
+    the orchestrator didn't write one (e.g. running the CLI by hand). The
+    status_* columns are still padded so the header does not depend on it."""
     output_path = tmp_path / "run_summary.csv"
     collector = Nfflu_Results_Collector({"auto-nfflu": True})
     collector.collect_run_summary(
@@ -75,18 +77,22 @@ def test_auto_nfflu_mode_without_pipeline_status_file_still_succeeds(analysis_di
     )
     df = pd.read_csv(output_path)
     assert len(df) == len(SAMPLE_IDS)
-    assert "status_nf-flu" not in df.columns
+    assert list(df.columns)[-len(STATUS_COLUMNS):] == STATUS_COLUMNS
+    assert df["status_nf-flu"].isna().all()
 
 
 def test_collect_mixture_report(analysis_dir, tmp_path):
+    """Every sample gets a row, including the two with no mixture report,
+    because downstream ingestion reads the file unconditionally."""
     output_path = tmp_path / "mixture_report.csv"
     collector = Nfflu_Results_Collector()
     collector.collect_mixture_report(str(analysis_dir), str(output_path))
 
     df = pd.read_csv(output_path)
-    assert set(df["FastQID"]) == {SAMPLE_STANDARD, SAMPLE_SALVAGE}
-    row = df.set_index("FastQID").loc[SAMPLE_STANDARD]
-    assert bool(row["mixture_present"]) is True
+    assert set(df["FastQID"]) == set(SAMPLE_IDS)
+    indexed = df.set_index("FastQID")
+    assert bool(indexed.loc[SAMPLE_STANDARD, "mixture_present"]) is True
+    assert pd.isna(indexed.loc[SAMPLE_CONTROL, "mixture_present"])
 
 
 def test_symlink_consensus_fastas(analysis_dir, tmp_path):
@@ -128,3 +134,18 @@ def test_collect_run_summary_creates_missing_output_directory(analysis_dir, tmp_
     collector = Nfflu_Results_Collector()
     collector.collect_run_summary(str(analysis_dir), str(output_path))
     assert output_path.exists()
+
+
+def test_both_layouts_produce_the_same_run_summary(tmp_path):
+    """The per-sample layout auto-nfflu migrates to next is exercised here
+    against the same fixture data, so switching config["layout"] is a
+    tested change rather than an untried one."""
+    outputs = {}
+    for layout in ("stage", "sample"):
+        analysis_dir = build_fixture(tmp_path / layout, layout=layout)
+        output_path = tmp_path / f"{layout}_run_summary.csv"
+        collector = Nfflu_Results_Collector({"layout": layout})
+        collector.collect_run_summary(str(analysis_dir), str(output_path), run_id=RUN_ID)
+        outputs[layout] = output_path.read_text()
+
+    assert outputs["stage"] == outputs["sample"]

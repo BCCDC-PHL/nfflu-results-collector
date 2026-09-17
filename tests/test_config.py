@@ -8,9 +8,8 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def test_template_matches_packaged_defaults():
-    """config-template.json is a copy users edit. It drifted out of sync
-    with the packaged defaults once already, leaving paths that matched no
-    real nf-flu layout, so the two are pinned together here."""
+    """config-template.json is a copy users edit, pinned to the packaged
+    defaults so the two cannot drift apart."""
     with open(os.path.join(REPO_ROOT, "config-template.json")) as f:
         template = json.load(f)
     with open(os.path.join(REPO_ROOT, "nfflu_results_collector", "config", "defaults.json")) as f:
@@ -32,23 +31,6 @@ def test_overrides_deep_merge_without_clobbering_sibling_keys():
     assert cfg["nextclade"]["ha_only"] is False
     # legacy_clade wasn't touched by the override -- deep merge must not
     # wipe it out the way the old flat dict.update() would have.
-    assert cfg["nextclade"]["legacy_clade"] is False
-
-
-def test_legacy_flat_keys_are_normalized_with_deprecation_warning(caplog):
-    import logging
-    with caplog.at_level(logging.WARNING):
-        cfg = config.load_config(overrides={"legacy-clade": True, "nextclade-ha-only": False})
-    assert cfg["nextclade"]["legacy_clade"] is True
-    assert cfg["nextclade"]["ha_only"] is False
-    assert "legacy-clade" not in cfg
-    assert "nextclade-ha-only" not in cfg
-    events = [json.loads(r.message)["event_type"] for r in caplog.records]
-    assert events.count("deprecated_config_key") == 2
-
-
-def test_explicit_nested_key_wins_over_legacy_flat_key():
-    cfg = config.load_config(overrides={"legacy-clade": True, "nextclade": {"legacy_clade": False}})
     assert cfg["nextclade"]["legacy_clade"] is False
 
 

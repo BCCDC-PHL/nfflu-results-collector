@@ -16,6 +16,8 @@ Four samples exercise the sample-ID parsing branches:
 import os
 import textwrap
 
+import nfflu_results_collector.layouts as layouts
+
 RUN_ID = "250101_M00123_0001_000000000-ABCDE"
 ANALYSIS_TYPE = "short"
 
@@ -84,9 +86,11 @@ def _write(path, content):
         f.write(content)
 
 
-def _sample_path(analysis_dir, sample, *parts):
-    """nf-flu publishes per-sample outputs under <analysis_dir>/<sample>/."""
-    return os.path.join(analysis_dir, sample, *parts)
+def _out(analysis_dir, name, layout, sample=None, *parts):
+    """A path from the layout registry, so the fixture tree always matches
+    where the collector looks."""
+    kwargs = {"sample": sample} if sample is not None else {}
+    return os.path.join(layouts.output_path(analysis_dir, name, layout=layout, **kwargs), *parts)
 
 
 def _sequence_id(sample, segment):
@@ -97,24 +101,25 @@ def _sequence_id(sample, segment):
     return f"{sample}_{SEGMENT_NUMBER[segment]}_{segment}"
 
 
-def build_fixture(root):
-    """Build the fixture tree under `root` (a Path). Returns the nf-flu
-    output directory path (i.e. the `analysis_dir` to pass to the collector)."""
+def build_fixture(root, layout="stage"):
+    """Build the fixture tree under `root` (a Path) in the named layout. Returns
+    the nf-flu output directory path (the `analysis_dir` to pass to the
+    collector)."""
     root = str(root)
 
     run_analysis_dir = os.path.join(root, "analysis_output", RUN_ID, ANALYSIS_TYPE)
     analysis_dir = os.path.join(run_analysis_dir, "nf-flu-3.10-output")
 
     _build_samplesheets(run_analysis_dir)
-    _build_fastq(analysis_dir)
-    _build_subtyping_report(analysis_dir)
-    _build_mapping(analysis_dir)
-    _build_consensus(analysis_dir)
-    _build_annotation(analysis_dir)
-    _build_genoflu(analysis_dir)
-    _build_nextclade(analysis_dir)
-    _build_mixtures(analysis_dir)
-    _build_software_versions(analysis_dir)
+    _build_fastq(analysis_dir, layout)
+    _build_subtyping_report(analysis_dir, layout)
+    _build_mapping(analysis_dir, layout)
+    _build_consensus(analysis_dir, layout)
+    _build_annotation(analysis_dir, layout)
+    _build_genoflu(analysis_dir, layout)
+    _build_nextclade(analysis_dir, layout)
+    _build_mixtures(analysis_dir, layout)
+    _build_software_versions(analysis_dir, layout)
 
     return analysis_dir
 
@@ -127,17 +132,17 @@ def _build_samplesheets(run_analysis_dir):
     _write(path, "\n".join(lines) + "\n")
 
 
-def _build_fastq(analysis_dir):
+def _build_fastq(analysis_dir, layout):
     for sample in SAMPLE_IDS:
         for read in ("1", "2"):
-            path = _sample_path(analysis_dir, sample, "fastq", f"{sample}_{read}.merged.fastq.gz")
+            path = _out(analysis_dir, "fastq_dir", layout, sample, f"{sample}_{read}.merged.fastq.gz")
             _write(path, "")
 
 
-def _build_subtyping_report(analysis_dir):
+def _build_subtyping_report(analysis_dir, layout):
     # S1 -> H5N1, S3 -> H3N2, S4 -> H5N1. S2 (control) intentionally has no
     # subtype call.
-    path = os.path.join(analysis_dir, "aggregate", "bcftools", "subtyping_report", "subtype_results.csv")
+    path = layouts.output_path(analysis_dir, "subtype_results", layout=layout)
     content = textwrap.dedent(f"""\
         ,sample,Genotype,H_type,N_type
         0,{SAMPLE_STANDARD},3,5,1
@@ -147,21 +152,21 @@ def _build_subtyping_report(analysis_dir):
     _write(path, content)
 
 
-def _build_mapping(analysis_dir):
+def _build_mapping(analysis_dir, layout):
     for sample, seg_reads in READS_MAPPED.items():
         for seg, reads in seg_reads.items():
             seg_num = SEGMENT_NUMBER[seg]
             ref_name = f"Segment_{seg_num}_{seg}"
             filename = f"{sample}.Segment_{seg_num}_{seg}.idxstats"
-            path = _sample_path(analysis_dir, sample, "mapping", filename)
+            path = _out(analysis_dir, "mapping_dir", layout, sample, filename)
             unmapped = max(10, reads // 200)
             content = f"{ref_name}\t{REF_SEG_LENGTH[seg]}\t{reads}\t{unmapped}\n*\t0\t0\t{unmapped}\n"
             _write(path, content)
 
 
-def _build_consensus(analysis_dir):
+def _build_consensus(analysis_dir, layout):
     for sample, seg_ns in CONSENSUS_N_COUNTS.items():
-        path = _sample_path(analysis_dir, sample, "consensus", "bcftools", f"{sample}.consensus.fasta")
+        path = layouts.output_path(analysis_dir, "bcftools_consensus", sample=sample, layout=layout)
         records = []
         for seg, n_count in seg_ns.items():
             seq = ("N" * n_count) + ("A" * (100 - n_count))
@@ -169,17 +174,17 @@ def _build_consensus(analysis_dir):
         _write(path, "".join(records))
 
 
-def _build_annotation(analysis_dir):
+def _build_annotation(analysis_dir, layout):
     # Cleavage site annotation only produced for the H5N1 sample (S1).
     sample = SAMPLE_STANDARD
-    path = _sample_path(analysis_dir, sample, "annotation", f"{sample}.cleavage.tsv")
+    path = layouts.output_path(analysis_dir, "cleavage", sample=sample, layout=layout)
     header = f"{sample}_segment4_HA|misc_feature|HA|1035..1061 cleavage site"
     content = "Cleavage Sequence\tCleavage Site Sequence Header\n"
     content += f"PRRARRVSLVQERG\t{header}\n"
     _write(path, content)
 
 
-def _build_genoflu(analysis_dir):
+def _build_genoflu(analysis_dir, layout):
     # No genoflu call for the control sample (S2).
     genotypes = {
         SAMPLE_STANDARD: (
@@ -196,13 +201,13 @@ def _build_genoflu(analysis_dir):
         ),
     }
     for sample, (genotype, seg_list) in genotypes.items():
-        path = _sample_path(analysis_dir, sample, "genoflu", f"{sample}.genoflu.tsv")
+        path = layouts.output_path(analysis_dir, "genoflu", sample=sample, layout=layout)
         content = "Genotype\tGenotype List Used, >=98.0%\n"
         content += f"{genotype}\t{seg_list}\n"
         _write(path, content)
 
 
-def _build_nextclade(analysis_dir):
+def _build_nextclade(analysis_dir, layout):
     columns = ["seqName", "clade", "subclade", "legacy-clade", "qc.overallScore", "qc.overallStatus", "alignmentScore"]
     clade_by_sample = {
         SAMPLE_STANDARD: ("2.3.4.4b", "2.3.4.4b.1", "2.3.4.4b", "98.5", "good", "1850.0"),
@@ -220,12 +225,12 @@ def _build_nextclade(analysis_dir):
             else:
                 score = str(float(ha_score) - 400.0)
             rows.append("\t".join([seq_name, clade, subclade, legacy, qc_score, qc_status, score]))
-        path = _sample_path(analysis_dir, sample, "nextclade", f"{sample}.nextclade.tsv")
+        path = _out(analysis_dir, "nextclade_tsvs", layout, sample, f"{sample}.nextclade.tsv")
         _write(path, "\n".join(rows) + "\n")
 
     # "Already published" dataset-version metadata: run-level, not per-sample
     # (no header, 4 columns).
-    path = os.path.join(analysis_dir, "aggregate", "nextclade", "nextclade-dataset-versions.csv")
+    path = _out(analysis_dir, "nextclade_dir", layout, None, "nextclade-dataset-versions.csv")
     lines = []
     for sample in SAMPLE_IDS:
         dataset_name, dataset_version = NEXTCLADE_DATASET[sample]
@@ -233,21 +238,21 @@ def _build_nextclade(analysis_dir):
     _write(path, "\n".join(lines) + "\n")
 
 
-def _build_mixtures(analysis_dir):
+def _build_mixtures(analysis_dir, layout):
     # No mixture report for the control sample (S2).
     mixture_rows = {
         SAMPLE_STANDARD: (True, False, True, 0.98, 0.62),
         SAMPLE_SALVAGE: (False, False, False, 0.99, 0.99),
     }
     for sample, (mixture, ha_mix, na_mix, ha_ratio, na_ratio) in mixture_rows.items():
-        path = _sample_path(analysis_dir, sample, "mixtures", f"{sample}_mixtures.csv")
+        path = layouts.output_path(analysis_dir, "mixtures_csv", sample=sample, layout=layout)
         content = "sample_name,mixture_present,ha_mixture_present,na_mixture_present,ha_read_ratio,na_read_ratio\n"
         content += f"{sample},{mixture},{ha_mix},{na_mix},{ha_ratio},{na_ratio}\n"
         _write(path, content)
 
 
-def _build_software_versions(analysis_dir):
-    path = os.path.join(analysis_dir, "pipeline_info", "software_versions.yml")
+def _build_software_versions(analysis_dir, layout):
+    path = layouts.output_path(analysis_dir, "software_versions", layout=layout)
     content = textwrap.dedent("""\
         GENOFLU:
           genoflu: '1.8.1'

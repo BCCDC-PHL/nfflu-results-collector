@@ -22,7 +22,7 @@ A Python module for collecting, aggregating, and summarizing results from [nf-fl
 - **Multi-segment Analysis**: Processes all 8 influenza genome segments (PB2, PB1, PA, HA, NP, NA, M, NS)
 - **Quality Metrics**: Calculates consensus completeness and tree-pass status per segment
 - **Pluggable result sources**: each result type (subtype, nextclade, idxstats, ...) is a small, independently testable parser registered in `sources.py` -- adding a new one doesn't require touching the orchestration logic
-- **Config-driven**: file paths, segment list, tree-pass threshold, and Nextclade behaviour all live in config (packaged defaults, optionally overridden by a YAML/JSON file and/or a caller-supplied dict), not hardcoded across the codebase
+- **Config-driven**: segment list, tree-pass threshold, output layout, and Nextclade behaviour all live in config (packaged defaults, optionally overridden by a YAML/JSON file and/or a caller-supplied dict); input paths live in `layouts.py`, shared with auto-nfflu
 - **Frozen output schema**: the summary CSV's column set and order (`nfflu_results_collector.schema.CANONICAL_COLUMNS`) is validated on every run; unexpected columns are never silently dropped
 - **Logging**: Comprehensive logging for debugging and tracking data collection progress
 - **Mixture Reporting**: Optional mixture analysis report generation
@@ -115,50 +115,58 @@ collector.symlink_consensus_fastas(
 
 ## Input Directory Structure
 
-The collector expects the nf-flu output directory to have the following structure (each path is configurable -- see [Configuration](#configuration)):
-
-Results are published per sample, one directory per sample, with run-level
-aggregates alongside them:
+The collector expects the nf-flu output directory to have the structure below,
+which is what nf-flu 3.10 publishes: outputs grouped by pipeline stage, with the
+sample name as a directory inside each stage.
 
 ```
 analysis_output/
-├── {sample}/
-│   ├── fastq/
-│   │   └── {sample}*.merged.fastq.gz   # used for sample name extraction
-│   ├── mapping/
-│   │   └── {sample}*.idxstats          # Read mapping statistics
-│   ├── consensus/
-│   │   └── bcftools/
-│   │       └── {sample}.consensus.fasta
-│   ├── annotation/
-│   │   └── {sample}.cleavage.tsv       # HPAI cleavage site
-│   ├── genoflu/
-│   │   └── {sample}.genoflu.tsv        # GenoFLU genotyping
-│   ├── nextclade/
-│   │   └── *.nextclade.tsv
-│   └── mixtures/
+├── fastq/
+│   └── {sample}*.merged.fastq.gz       # used for sample name extraction
+├── mapping/
+│   └── {sample}/
+│       └── {sample}*.idxstats          # read mapping statistics
+├── consensus/
+│   └── bcftools/
+│       └── {sample}.consensus.fasta
+├── annotation/
+│   └── {sample}/
+│       └── {sample}.cleavage.tsv       # HPAI cleavage site
+├── genoflu/
+│   └── {sample}.genoflu.tsv            # GenoFLU genotyping
+├── nextclade/
+│   └── {sample}/
+│       └── *.nextclade.tsv
+├── mixtures/
+│   └── {sample}/
 │       └── {sample}_mixtures.csv
+├── subtyping_report/
+│   └── subtype_results.csv             # subtyping results
 ├── aggregate/
-│   ├── bcftools/
-│   │   └── subtyping_report/
-│   │       └── subtype_results.csv     # Subtyping results
 │   └── nextclade/
 │       └── nextclade-dataset-versions.csv  # dataset name/version per sample (optional)
 ├── pipeline_status.csv                 # per-pipeline-stage status, written by the
 │                                        # orchestrator (e.g. auto-nfflu); optional,
 │                                        # only merged in when auto-nfflu mode is on
 └── pipeline_info/
-    └── software_versions.yml           # Software provenance
+    └── software_versions.yml           # software provenance
 ```
 
-Note the two `nextclade` locations: the per-sample TSVs are published under each
-sample, while `nextclade-dataset-versions.csv` is a single run-level file written
-by the orchestrator under `aggregate/`.
+Every path above is declared in `nfflu_results_collector/layouts.py`, which is
+the only place a path appears. auto-nfflu imports the same module, so the two
+cannot drift apart.
 
-Note: this collector no longer reaches into Nextflow execution internals (logs,
-work directories) for anything. `nextclade-dataset-versions.csv` is expected to
-already be published at the path above by whatever orchestrated the pipeline run;
-if it's absent, dataset name/version are reported as `'N/A'`.
+`layouts.py` holds a second layout, `sample`, which groups the same outputs by
+sample (`{sample}/mapping/...`) with run-level output under `aggregate/`. Select
+it with `"layout": "sample"` in the config; nothing else changes.
+
+The last three entries are the orchestrator's own outputs rather than nf-flu's,
+so they sit in the same place under either layout.
+
+The collector reads published output only, never Nextflow logs or work
+directories. Whatever orchestrates the run publishes
+`nextclade-dataset-versions.csv` at the path above; without it, dataset name and
+version are reported as `'N/A'`.
 
 ## Output Format
 
@@ -242,15 +250,8 @@ segments: [PB2, PB1, PA, HA, NP, NA, M, NS]
 nextclade:
   ha_only: true           # default: true
   legacy_clade: false     # default: false
-paths:
-  idxstats: "{sample}/mapping/{sample}*.idxstats"
-  # ... see defaults.json for the full set of path templates
+layout: stage             # default: stage; "sample" for the per-sample layout
 ```
-
-For backward compatibility, the pre-nested flat keys (`auto-nfflu`,
-`legacy-clade`, `nextclade-ha-only`) are still accepted anywhere a config layer
-is provided; they're normalized onto their nested locations with a deprecation
-warning logged. Prefer the nested keys in new configs.
 
 ```python
 collector = Nfflu_Results_Collector({
