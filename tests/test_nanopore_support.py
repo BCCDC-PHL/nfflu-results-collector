@@ -3,8 +3,9 @@ import os
 
 import pytest
 
-from nfflu_results_collector.collector import MIXTURE_COLUMNS, Nfflu_Results_Collector
-from nfflu_results_collector.tools import detect_platform
+from nfflu_results_collector.collector import Nfflu_Results_Collector
+from nfflu_results_collector.layouts import detect_platform
+from nfflu_results_collector.schema import MIXTURE_COLUMNS
 
 
 ILLUMINA_HEADER = "sample,fastq1,fastq2,single_end"

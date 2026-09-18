@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-import os, sys
+import sys
 import argparse
 import logging
-import pandas as pd
 
 from nfflu_results_collector.collector import Nfflu_Results_Collector
 
@@ -15,6 +14,7 @@ def main():
     parser.add_argument('-s', '--output-symlinks', help='Path to output symlinks directory')
     parser.add_argument('-n', '--output-nextclade', help='Path to output Nextclade CSV file')
     parser.add_argument('-a', '--auto-nfflu', action='store_true', help='Run on auto-nfflu results structure')
+    parser.add_argument('-c', '--config', help='Path to a user config file (YAML or JSON) overriding packaged defaults')
     parser.add_argument('--log-level', default='INFO', help='Logging level (default: INFO)')
 
     args = parser.parse_args()
@@ -23,7 +23,10 @@ def main():
         level=getattr(logging, args.log_level.upper(), logging.INFO),
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
-    collector = Nfflu_Results_Collector({'auto-nfflu': args.auto_nfflu})
+
+    overrides = {'auto-nfflu': args.auto_nfflu} if args.auto_nfflu else None
+    collector = Nfflu_Results_Collector(overrides, config_path=args.config)
+
     collector.collect_run_summary(args.analysis_dir, args.output_summary)
     if args.output_mixture:
         collector.collect_mixture_report(args.analysis_dir, args.output_mixture)
