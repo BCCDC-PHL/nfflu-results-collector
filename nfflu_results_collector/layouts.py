@@ -19,8 +19,8 @@ One template serves both a whole-run glob and a single-sample path, since
 Two BLAST paths differ between sequencing platforms; those templates carry a
 `{blast}` field filled from the platform.
 
-The last three entries are auto-nfflu's own outputs rather than nf-flu's, so
-they do not move with the layout.
+`nextclade_dir` and `pipeline_status` are auto-nfflu's own outputs rather than
+nf-flu's, published alongside the run's nf-flu results.
 """
 import glob
 import json
@@ -49,7 +49,7 @@ STAGE_CENTRIC = {
     'genoflu':             'genoflu/{sample}.genoflu.tsv',
     'nextclade_tsvs':      'nextclade/{sample}',
     'software_versions':   'pipeline_info/software_versions.yml',
-    'nextclade_dir':       'aggregate/nextclade',
+    'nextclade_dir':       'nextclade',
     'pipeline_status':     'pipeline_status.csv',
 }
 
