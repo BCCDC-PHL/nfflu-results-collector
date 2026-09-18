@@ -13,7 +13,7 @@ def cfg():
 
 
 def test_registered_source_columns_plus_computed_columns_cover_full_schema():
-    """Every column in the frozen schema is accounted for either by a
+    """Every column in the declared schema is accounted for either by a
     registered source or by a named computed-column step. Catches drift
     if a parser gains/loses a field without schema.py being updated, or
     vice versa."""
@@ -60,7 +60,7 @@ def test_tree_pass_threshold_is_strict_greater_than(cfg):
 def test_genotype_parser_remaps_mp_to_m_and_preserves_value_quirk(analysis_dir, cfg):
     # GenoFLU values have a leading space quirk from the original parser
     # ("PB2: A3, ...".split(":") -> " A3"); preserved deliberately since
-    # it's part of the frozen output contract.
+    # it's part of the declared output contract.
     result = sources._parse_genotype(str(analysis_dir), SAMPLE_STANDARD, cfg)
     assert result["GenoFLU_M"] == " A3"
     assert result["GenoFLU_Genotype"] == "B3.6"

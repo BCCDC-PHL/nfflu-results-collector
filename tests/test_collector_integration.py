@@ -59,7 +59,7 @@ def test_auto_nfflu_mode_merges_pipeline_status_columns(analysis_dir, tmp_path):
     assert row["status_basic-sequence-qc"] == 1
     assert row["status_nf-flu"] == 1
 
-    # the 64-column frozen schema still appears first, in order, ahead of
+    # the 64 declared columns still appear first, in order, ahead of
     # the dynamically-named status_* columns
     from nfflu_results_collector.schema import CANONICAL_COLUMNS
     assert list(df.columns)[: len(CANONICAL_COLUMNS)] == CANONICAL_COLUMNS

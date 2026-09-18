@@ -23,7 +23,8 @@ A Python module for collecting, aggregating, and summarizing results from [nf-fl
 - **Quality Metrics**: Calculates consensus completeness and tree-pass status per segment
 - **Pluggable result sources**: each result type (subtype, nextclade, idxstats, ...) is a small, independently testable parser registered in `sources.py` -- adding a new one doesn't require touching the orchestration logic
 - **Config-driven**: segment list, tree-pass threshold, output layout, and Nextclade behaviour all live in config (packaged defaults, optionally overridden by a YAML/JSON file and/or a caller-supplied dict); input paths live in `layouts.py`, shared with auto-nfflu
-- **Frozen output schema**: the summary CSV's column set and order (`nfflu_results_collector.schema.CANONICAL_COLUMNS`) is validated on every run; unexpected columns are never silently dropped. Read counts, consensus completeness and tree-pass flags are also range-checked (`schema.CHECKS`), logging a `column_failed_check` event without altering the value
+- **Declared output schema**: the summary CSV's column set and order (`nfflu_results_collector.schema.CANONICAL_COLUMNS`) is validated on every run; unexpected columns are never silently dropped
+- **Range-checked values**: read counts, consensus completeness and tree-pass flags are checked against `schema.CHECKS`, logging a `column_failed_check` event without altering the value
 - **Logging**: Comprehensive logging for debugging and tracking data collection progress
 - **Mixture Reporting**: Optional mixture analysis report generation
 - **Consensus Linking**: Creates symlinks to consensus FASTA files for downstream analysis
@@ -135,16 +136,14 @@ analysis_output/
 ├── genoflu/
 │   └── {sample}.genoflu.tsv            # GenoFLU genotyping
 ├── nextclade/
-│   └── {sample}/
-│       └── *.nextclade.tsv
+│   ├── {sample}/
+│   │   └── *.nextclade.tsv
+│   └── nextclade-dataset-versions.csv  # dataset name/version per sample (optional)
 ├── mixtures/
 │   └── {sample}/
 │       └── {sample}_mixtures.csv
 ├── subtyping_report/
 │   └── subtype_results.csv             # subtyping results
-├── aggregate/
-│   └── nextclade/
-│       └── nextclade-dataset-versions.csv  # dataset name/version per sample (optional)
 ├── pipeline_status.csv                 # per-pipeline-stage status, written by the
 │                                        # orchestrator (e.g. auto-nfflu); optional,
 │                                        # only merged in when auto-nfflu mode is on
@@ -160,8 +159,8 @@ cannot drift apart.
 sample (`{sample}/mapping/...`) with run-level output under `aggregate/`. Select
 it with `"layout": "sample"` in the config; nothing else changes.
 
-The last three entries are the orchestrator's own outputs rather than nf-flu's,
-so they sit in the same place under either layout.
+`pipeline_status.csv` is the orchestrator's own output rather than nf-flu's, so
+it sits at the top of the output directory under either layout.
 
 The collector reads published output only, never Nextflow logs or work
 directories. Whatever orchestrates the run publishes
@@ -173,12 +172,12 @@ version are reported as `'N/A'`.
 ### Summary CSV
 
 The primary output is a CSV file with one row per sample. Its column set and
-order (`nfflu_results_collector.schema.CANONICAL_COLUMNS`) is a frozen contract
-consumed by downstream ingestion -- it's pinned by a golden-output test
-(`tests/test_golden_output.py`) so refactors can't accidentally change it. If
-`--auto-nfflu` is used and a `pipeline_status.csv` is found, dynamically-named
-`status_*` columns (one per upstream pipeline) are appended after the frozen
-columns.
+order (`nfflu_results_collector.schema.CANONICAL_COLUMNS`) is the contract
+downstream ingestion reads -- it's pinned by a golden-output test
+(`tests/test_golden_output.py`), so changing it takes a deliberate edit and a
+reviewed golden diff. If `--auto-nfflu` is used and a `pipeline_status.csv` is
+found, dynamically-named `status_*` columns (one per upstream pipeline) are
+appended after the declared columns.
 
 **Sample Identifiers:**
 - `FastQID`: Full sample identifier from FASTQ filename
@@ -290,7 +289,7 @@ nfflu-results-collector/
 │   ├── sources.py           # ResultSource registry: one parser per result
 │   │                         # type (subtype, idxstats, completeness, ...)
 │   ├── sample_id.py         # FastQID -> {CID, Plate, Index, Well} parsing
-│   ├── schema.py            # CANONICAL_COLUMNS (the frozen output contract)
+│   ├── schema.py            # CANONICAL_COLUMNS (the declared output contract)
 │   │                         # and order_and_validate()
 │   ├── nextclade.py         # Nextclade-specific collection/filtering
 │   ├── auto.py               # auto-nfflu sample discovery + pipeline_status.csv merge
@@ -315,7 +314,7 @@ pytest
 
 `tests/test_golden_output.py` is the most important test in the suite: it
 byte-compares `collect_run_summary`'s output against a checked-in golden CSV,
-guarding the frozen output contract. If you intentionally change what columns
+guarding the declared output contract. If you intentionally change what columns
 are produced, regenerate it deliberately and review the diff:
 
 ```bash

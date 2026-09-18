@@ -3,7 +3,7 @@ running the collector against the synthetic fixture.
 
 The golden file is a snapshot of what the collector currently produces for
 the synthetic fixture. Only regenerate it deliberately, when a change to
-expected_columns or collection logic is an *intentional*, reviewed change to
+CANONICAL_COLUMNS or collection logic is an *intentional*, reviewed change to
 the output contract -- not as part of routine development, and review the
 resulting diff. The golden-output test (test_golden_output.py) exists
 specifically to catch *unintentional* drift.

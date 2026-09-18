@@ -282,7 +282,7 @@ PER_SAMPLE_SOURCES = [IDXSTATS_SOURCE, COMPLETENESS_SOURCE, CLEAVAGE_SOURCE, GEN
 GLOBAL_SOURCES = [PROVENANCE_SOURCE]
 
 # Declared columns, across every registered source, that are part of the
-# frozen run_summary.csv schema (excludes pipeline_status, whose columns
+# declared run_summary.csv schema (excludes pipeline_status, whose columns
 # are dynamic and only appended in auto-nfflu mode).
 ALL_SOURCE_COLUMNS = [
     col

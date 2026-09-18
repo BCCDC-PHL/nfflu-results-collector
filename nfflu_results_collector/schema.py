@@ -1,8 +1,9 @@
 """The run_summary.csv output schema: column set and order.
 
-This is a frozen contract consumed by downstream ingestion, so
+Downstream ingestion reads this column set and order, so changing it is a
+reviewed change pinned by a golden test, not an incidental one.
 CANONICAL_COLUMNS is a literal, structural transcription of the column
-order the tool has always produced -- not something clever derived from
+order the tool produces -- not something clever derived from
 segment/metric loops, because the real order doesn't follow either the
 canonical genome-segment order (PB2 first, used everywhere else in this
 package for processing) or alphabetical order. It's its own thing, so it
