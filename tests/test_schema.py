@@ -1,7 +1,9 @@
 import json
 
 import pandas as pd
+import pytest
 
+import nfflu_results_collector.config as config
 import nfflu_results_collector.schema as schema
 
 
@@ -69,5 +71,14 @@ def test_canonical_columns_have_no_duplicates():
 
 
 def test_display_segment_order_is_a_permutation_of_processing_segments():
-    processing_segments = {"PB2", "PB1", "PA", "HA", "NP", "NA", "M", "NS"}
-    assert set(schema.DISPLAY_SEGMENT_ORDER) == processing_segments
+    """DISPLAY_SEGMENT_ORDER and config's "segments" are deliberately different
+    orders of the same eight segments; adding one to either alone is a bug."""
+    assert set(schema.DISPLAY_SEGMENT_ORDER) == set(config.load_default_config()["segments"])
+
+
+def test_mixture_columns_match_pileup_tools():
+    """MIXTURE_COLUMNS is a copy of the column list pileup-tools writes, kept
+    here so the collector doesn't have to depend on it. Skipped where
+    pileup-tools isn't installed."""
+    mixture_detector = pytest.importorskip("pileup_tools.mixture_detector")
+    assert schema.MIXTURE_COLUMNS == mixture_detector.MixtureDetector.COLUMN_NAMES
