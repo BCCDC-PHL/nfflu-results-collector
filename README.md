@@ -23,7 +23,7 @@ A Python module for collecting, aggregating, and summarizing results from [nf-fl
 - **Quality Metrics**: Calculates consensus completeness and tree-pass status per segment
 - **Pluggable result sources**: each result type (subtype, nextclade, idxstats, ...) is a small, independently testable parser registered in `sources.py` -- adding a new one doesn't require touching the orchestration logic
 - **Config-driven**: segment list, tree-pass threshold, output layout, and Nextclade behaviour all live in config (packaged defaults, optionally overridden by a YAML/JSON file and/or a caller-supplied dict); input paths live in `layouts.py`, shared with auto-nfflu
-- **Frozen output schema**: the summary CSV's column set and order (`nfflu_results_collector.schema.CANONICAL_COLUMNS`) is validated on every run; unexpected columns are never silently dropped
+- **Frozen output schema**: the summary CSV's column set and order (`nfflu_results_collector.schema.CANONICAL_COLUMNS`) is validated on every run; unexpected columns are never silently dropped. Read counts, consensus completeness and tree-pass flags are also range-checked (`schema.CHECKS`), logging a `column_failed_check` event without altering the value
 - **Logging**: Comprehensive logging for debugging and tracking data collection progress
 - **Mixture Reporting**: Optional mixture analysis report generation
 - **Consensus Linking**: Creates symlinks to consensus FASTA files for downstream analysis

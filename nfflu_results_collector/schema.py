@@ -12,6 +12,8 @@ JSON array with no enforcement.
 import json
 import logging
 
+import pandas as pd
+
 # Segment display order for output columns only (HA_*, GenoFLU_*, ...).
 # Deliberately NOT the same as the canonical/processing segment order
 # (config's "segments" list, PB2 first) -- this is just the order the
@@ -81,6 +83,22 @@ def pad_status_columns(df):
     return df[[c for c in df.columns if c not in STATUS_COLUMNS] + STATUS_COLUMNS]
 
 
+def _num(s):
+    """Non-null values as numbers, with anything unparseable as NaN, so a
+    check never raises on a column that has gone to strings."""
+    return pd.to_numeric(s.dropna(), errors="coerce")
+
+
+# Value sanity checks, keyed by column suffix so one entry covers all eight
+# segments. These warn and never modify the frame. An all-null column is
+# vacuously fine -- order_and_validate already warns separately about those.
+CHECKS = {
+    "_consensus_completeness": lambda s: _num(s).between(0, 100).all(),
+    "_reads_mapped": lambda s: _num(s).notna().all(),
+    "_tree_pass": lambda s: _num(s).isin([0, 1]).all(),
+}
+
+
 def order_and_validate(df, schema=None):
     """Reindex `df` to `schema`'s column order (default CANONICAL_COLUMNS).
 
@@ -88,7 +106,7 @@ def order_and_validate(df, schema=None):
     Columns present in `df` but NOT declared in the schema are never
     silently dropped: they're appended after the declared schema (stable
     order) and a warning is logged. auto-nfflu's status_* columns arrive
-    that way.
+    that way. Values are then checked against CHECKS, which only warns.
     """
     if schema is None:
         schema = CANONICAL_COLUMNS
@@ -102,4 +120,11 @@ def order_and_validate(df, schema=None):
     if extra:
         logging.warning(json.dumps({"event_type": "unexpected_columns_found", "columns": extra}))
 
-    return df[schema + extra]
+    out = df[schema + extra]
+
+    for suffix, ok in CHECKS.items():
+        for col in (c for c in out.columns if c.endswith(suffix)):
+            if not ok(out[col]):
+                logging.warning(json.dumps({"event_type": "column_failed_check", "column": col}))
+
+    return out
