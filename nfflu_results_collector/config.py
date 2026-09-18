@@ -3,16 +3,12 @@ import os
 
 import yaml
 
-import nfflu_results_collector.schema as schema
-
 _PACKAGE_DEFAULTS_PATH = os.path.join(os.path.dirname(__file__), "config", "defaults.json")
 
 
 def _load_packaged_defaults():
     with open(_PACKAGE_DEFAULTS_PATH, "r") as f:
-        config = json.load(f)
-    config.setdefault("expected_columns", schema.CANONICAL_COLUMNS)
-    return config
+        return json.load(f)
 
 
 def _deep_merge(base, override):

@@ -5,7 +5,6 @@ import pandas as pd
 import pytest
 
 from nfflu_results_collector.collector import Nfflu_Results_Collector
-from nfflu_results_collector.schema import STATUS_COLUMNS
 from tests.fixture_builder import build_fixture, RUN_ID, SAMPLE_IDS, SAMPLE_STANDARD, SAMPLE_CONTROL, SAMPLE_SALVAGE
 
 GOLDEN_PATH = os.path.join(os.path.dirname(__file__), "fixtures", "golden_run_summary.csv")
@@ -67,9 +66,10 @@ def test_auto_nfflu_mode_merges_pipeline_status_columns(analysis_dir, tmp_path):
 
 
 def test_auto_nfflu_mode_without_pipeline_status_file_still_succeeds(analysis_dir, tmp_path):
-    """pipeline_status.csv is optional -- the collector must not crash if
-    the orchestrator didn't write one (e.g. running the CLI by hand). The
-    status_* columns are still padded so the header does not depend on it."""
+    """pipeline_status.csv is optional -- the collector must not crash if the
+    orchestrator didn't write one (e.g. running the CLI by hand). Without it
+    there are no status_* columns to report, and the orchestrator owns which
+    ones exist, so none are invented here."""
     output_path = tmp_path / "run_summary.csv"
     collector = Nfflu_Results_Collector({"auto-nfflu": True})
     collector.collect_run_summary(
@@ -77,8 +77,7 @@ def test_auto_nfflu_mode_without_pipeline_status_file_still_succeeds(analysis_di
     )
     df = pd.read_csv(output_path)
     assert len(df) == len(SAMPLE_IDS)
-    assert list(df.columns)[-len(STATUS_COLUMNS):] == STATUS_COLUMNS
-    assert df["status_nf-flu"].isna().all()
+    assert not [c for c in df.columns if c.startswith("status_")]
 
 
 def test_collect_mixture_report(analysis_dir, tmp_path):

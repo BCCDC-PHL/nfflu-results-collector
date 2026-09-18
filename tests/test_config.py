@@ -2,7 +2,6 @@ import json
 import os
 
 import nfflu_results_collector.config as config
-import nfflu_results_collector.schema as schema
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -23,7 +22,6 @@ def test_load_default_config_has_expected_shape():
     assert cfg["tree_pass"]["threshold"] == 90
     assert cfg["nextclade"]["ha_only"] is True
     assert cfg["nextclade"]["legacy_clade"] is False
-    assert cfg["expected_columns"] == schema.CANONICAL_COLUMNS
 
 
 def test_overrides_deep_merge_without_clobbering_sibling_keys():

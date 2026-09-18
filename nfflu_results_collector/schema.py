@@ -65,24 +65,6 @@ MIXTURE_COLUMNS = [
     'initial_reads', 'pass_qc_reads', 'fail_qc_reads', 'match_reads', 'nomatch_reads',
 ]
 
-# Every pipeline that can contribute a status column. auto-nfflu's
-# pipeline_status.csv carries only the pipelines in one run's chain, so nanopore
-# and Illumina runs would otherwise disagree on the header.
-STATUS_COLUMNS = [
-    'status_cutadapt-nf', 'status_basic-sequence-qc', 'status_downsample-reads',
-    'status_basic-nanopore-qc', 'status_nf-flu',
-]
-
-
-def pad_status_columns(df):
-    """Add any missing status_* column as blank and move the whole set to the
-    end, so every run publishes the same header."""
-    for col in STATUS_COLUMNS:
-        if col not in df.columns:
-            df[col] = None
-    return df[[c for c in df.columns if c not in STATUS_COLUMNS] + STATUS_COLUMNS]
-
-
 def _num(s):
     """Non-null values as numbers, with anything unparseable as NaN, so a
     check never raises on a column that has gone to strings."""

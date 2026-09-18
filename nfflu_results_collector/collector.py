@@ -98,11 +98,7 @@ class Nfflu_Results_Collector:
         if "sample" in output_df.columns:
             output_df = output_df.drop(columns=['sample'])
 
-        expected_columns = self.config.get('expected_columns', schema.CANONICAL_COLUMNS)
-        output_df = schema.order_and_validate(output_df, expected_columns)
-
-        if self.config.get('auto-nfflu', False):
-            output_df = schema.pad_status_columns(output_df)
+        output_df = schema.order_and_validate(output_df)
 
         output_summary_dir = os.path.dirname(output_summary_file)
         if output_summary_dir != '' and not os.path.exists(output_summary_dir):
