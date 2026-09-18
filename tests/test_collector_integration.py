@@ -1,4 +1,6 @@
 import csv
+import json
+import logging
 import os
 
 import pandas as pd
@@ -38,7 +40,7 @@ def test_explicit_sample_ids_subset_only_includes_those_samples(analysis_dir, tm
     assert df["FastQID"].tolist() == [SAMPLE_STANDARD]
 
 
-def test_auto_nfflu_mode_merges_pipeline_status_columns(analysis_dir, tmp_path):
+def test_auto_nfflu_mode_merges_pipeline_status_columns(analysis_dir, tmp_path, caplog):
     status_path = os.path.join(str(analysis_dir), "pipeline_status.csv")
     with open(status_path, "w", newline="") as f:
         writer = csv.writer(f)
@@ -49,9 +51,15 @@ def test_auto_nfflu_mode_merges_pipeline_status_columns(analysis_dir, tmp_path):
 
     output_path = tmp_path / "run_summary.csv"
     collector = Nfflu_Results_Collector({"auto-nfflu": True})
-    collector.collect_run_summary(
-        str(analysis_dir), str(output_path), run_id=RUN_ID, sample_ids=list(SAMPLE_IDS)
-    )
+    with caplog.at_level(logging.WARNING):
+        collector.collect_run_summary(
+            str(analysis_dir), str(output_path), run_id=RUN_ID, sample_ids=list(SAMPLE_IDS)
+        )
+
+    # status_* columns are expected in this mode, so they must not be reported
+    # as unexpected on every production run.
+    events = [json.loads(r.message)["event_type"] for r in caplog.records]
+    assert "unexpected_columns_found" not in events
 
     df = pd.read_csv(output_path)
     assert "status_nf-flu" in df.columns

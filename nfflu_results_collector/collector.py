@@ -98,7 +98,10 @@ class Nfflu_Results_Collector:
         if "sample" in output_df.columns:
             output_df = output_df.drop(columns=['sample'])
 
-        output_df = schema.order_and_validate(output_df)
+        # The orchestrator names its own status_* columns, so they are declared
+        # here rather than in schema.py; anything else extra still warns.
+        status_columns = [c for c in output_df.columns if c.startswith('status_')]
+        output_df = schema.order_and_validate(output_df, schema.CANONICAL_COLUMNS + status_columns)
 
         output_summary_dir = os.path.dirname(output_summary_file)
         if output_summary_dir != '' and not os.path.exists(output_summary_dir):
