@@ -7,7 +7,7 @@ to this file alone. auto-nfflu imports this module too.
 Two layouts are described. STAGE_CENTRIC groups outputs by pipeline stage
 (`<outdir>/mapping/<sample>/`) and is what nf-flu 3.10 publishes. SAMPLE_CENTRIC
 groups them by sample (`<outdir>/<sample>/mapping/`) and matches the per-sample
-publishDir config in auto-nfflu's assets/config/nf-flu_nextflow_draft.config.
+publishDir config in auto-nfflu's assets/config/nf-flu_nextflow_sample.config.
 Callers select one by name; DEFAULT_LAYOUT applies when they do not.
 
 One template serves both a whole-run glob and a single-sample path, since
@@ -16,8 +16,9 @@ One template serves both a whole-run glob and a single-sample path, since
     output_path(outdir, 'mapping_dir')               -> <outdir>/mapping/*
     output_path(outdir, 'mapping_dir', sample='S1')  -> <outdir>/mapping/S1
 
-Two BLAST paths differ between sequencing platforms; those templates carry a
-`{blast}` field filled from the platform.
+Under STAGE_CENTRIC the two BLAST paths differ between sequencing platforms, so
+those templates carry a `{blast}` field filled from the platform. The per-sample
+config publishes both platforms to one path, so SAMPLE_CENTRIC spells them out.
 
 `nextclade_dir` and `pipeline_status` are auto-nfflu's own outputs rather than
 nf-flu's, published alongside the run's nf-flu results.
@@ -61,11 +62,11 @@ SAMPLE_CENTRIC = {
     'mixtures_csv':        '{sample}/mixtures/{sample}_mixtures.csv',
     'mixtures_txt':        '{sample}/mixtures/{sample}_mixtures.txt',
     'irma_consensus':      '{sample}/consensus/irma/{sample}*.irma.consensus.fasta',
-    'blastn_ref':          '{sample}/{blast}/irma/{sample}*blastn.txt',
+    'blastn_ref':          '{sample}/blast/irma/{sample}*blastn.txt',
     'reference_sequences': '{sample}/reference_sequences/*',
     'variants':            '{sample}/variants/*',
     'bcftools_consensus':  '{sample}/consensus/bcftools/{sample}*.consensus.fasta',
-    'blastn_subtype':      '{sample}/{blast}/consensus/{sample}*.blastn.txt',
+    'blastn_subtype':      '{sample}/blast/consensus/{sample}*.blastn.txt',
     'fastq_dir':           '{sample}/fastq',
     'subtype_results':     'aggregate/bcftools/subtyping_report/subtype_results.csv',
     'idxstats':            '{sample}/mapping/{sample}*.idxstats',
@@ -111,6 +112,16 @@ def detect_platform(outdir):
     logging.info(json.dumps({"event_type": "platform_detected", "platform": platform, "header": header}))
 
     return platform
+
+
+def detect_layout(outdir):
+    """Which layout an nf-flu output directory actually uses, or None when
+    neither matches. `mapping_dir` is 'mapping/*' under stage and '*/mapping'
+    under sample, so at most one can match a given directory."""
+    for name in PATHS_BY_LAYOUT:
+        if glob.glob(output_path(outdir, 'mapping_dir', layout=name)):
+            return name
+    return None
 
 
 def output_path(outdir, output_name, sample='*', platform='illumina', layout=None):

@@ -30,8 +30,16 @@ def test_output_path_renders_a_single_sample():
     ('illumina', '/out/blast/blastn/irma/S1*blastn.txt'),
     ('nanopore', '/out/blast/irma/S1*blastn.txt'),
 ])
-def test_blast_paths_differ_by_platform(platform, expected):
+def test_blast_paths_differ_by_platform_under_the_stage_layout(platform, expected):
     assert layouts.output_path('/out', 'blastn_ref', sample='S1', platform=platform, layout='stage') == expected
+
+
+@pytest.mark.parametrize("platform", ['illumina', 'nanopore'])
+def test_blast_paths_are_the_same_on_both_platforms_under_the_sample_layout(platform):
+    """The per-sample nextflow config is one file covering both platforms and
+    publishes BLAST to a single path, unlike upstream's two per-platform configs."""
+    path = layouts.output_path('/out', 'blastn_ref', sample='S1', platform=platform, layout='sample')
+    assert path == '/out/S1/blast/irma/S1*blastn.txt'
 
 
 def _touch(path):
@@ -64,3 +72,16 @@ def test_find_by_sample_refuses_templates_where_the_sample_name_is_ambiguous(tmp
     rather than return a truncated name."""
     with pytest.raises(ValueError):
         layouts.find_by_sample(str(tmp_path), 'blastn_ref', layout='stage')
+
+
+@pytest.mark.parametrize("layout,rel", [
+    ('stage',  'mapping/S1'),
+    ('sample', 'S1/mapping'),
+])
+def test_detect_layout_reads_the_layout_off_the_directory(tmp_path, layout, rel):
+    os.makedirs(os.path.join(str(tmp_path), rel))
+    assert layouts.detect_layout(str(tmp_path)) == layout
+
+
+def test_detect_layout_returns_none_when_nothing_matches(tmp_path):
+    assert layouts.detect_layout(str(tmp_path)) is None
