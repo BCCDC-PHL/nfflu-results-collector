@@ -1,28 +1,4 @@
-"""Where nf-flu publishes its outputs.
-
-Every path read out of, or written into, an nf-flu output directory is declared
-here as a template with a `{sample}` field, so changing the layout is a change
-to this file alone. auto-nfflu imports this module too.
-
-Two layouts are described. STAGE_CENTRIC groups outputs by pipeline stage
-(`<outdir>/mapping/<sample>/`) and is what nf-flu 3.10 publishes. SAMPLE_CENTRIC
-groups them by sample (`<outdir>/<sample>/mapping/`) and matches the per-sample
-publishDir config in auto-nfflu's assets/config/nf-flu_nextflow_sample.config.
-Callers select one by name; DEFAULT_LAYOUT applies when they do not.
-
-One template serves both a whole-run glob and a single-sample path, since
-`sample` defaults to the `*` wildcard:
-
-    output_path(outdir, 'mapping_dir')               -> <outdir>/mapping/*
-    output_path(outdir, 'mapping_dir', sample='S1')  -> <outdir>/mapping/S1
-
-Under STAGE_CENTRIC the two BLAST paths differ between sequencing platforms, so
-those templates carry a `{blast}` field filled from the platform. The per-sample
-config publishes both platforms to one path, so SAMPLE_CENTRIC spells them out.
-
-`nextclade_dir` and `pipeline_status` are auto-nfflu's own outputs rather than
-nf-flu's, published alongside the run's nf-flu results.
-"""
+"""Path templates for stage-centric and sample-centric nf-flu outputs."""
 import glob
 import json
 import logging
@@ -88,13 +64,7 @@ BLAST_DIR_BY_PLATFORM = {'illumina': os.path.join('blast', 'blastn'), 'nanopore'
 
 
 def detect_platform(outdir):
-    """Return 'nanopore' or 'illumina' for an nf-flu output directory.
-
-    nf-flu writes pipeline_info/samplesheet.fixed.csv under both platforms, but
-    with different headers: 'sample,barcode' for nanopore and
-    'sample,fastq1,fastq2,single_end' for Illumina. Falls back to 'illumina'
-    when the file is missing or unrecognised.
-    """
+    """Detect the sequencing platform, defaulting to Illumina."""
     samplesheet_path = os.path.join(outdir, 'pipeline_info', 'samplesheet.fixed.csv')
 
     try:
@@ -115,9 +85,7 @@ def detect_platform(outdir):
 
 
 def detect_layout(outdir):
-    """Which layout an nf-flu output directory actually uses, or None when
-    neither matches. `mapping_dir` is 'mapping/*' under stage and '*/mapping'
-    under sample, so at most one can match a given directory."""
+    """Detect the output layout, or return None if neither layout matches."""
     for name in PATHS_BY_LAYOUT:
         if glob.glob(output_path(outdir, 'mapping_dir', layout=name)):
             return name
@@ -125,24 +93,13 @@ def detect_layout(outdir):
 
 
 def output_path(outdir, output_name, sample='*', platform='illumina', layout=None):
-    """Absolute path (or glob, when `sample` is left as the wildcard) for one
-    nf-flu output within `outdir`."""
+    """Build an output path, using a glob when `sample` is `*`."""
     template = PATHS_BY_LAYOUT[layout or DEFAULT_LAYOUT][output_name]
     return os.path.join(outdir, template.format(sample=sample, blast=BLAST_DIR_BY_PLATFORM[platform]))
 
 
 def find_by_sample(outdir, output_name, platform='illumina', layout=None):
-    """Every match of `output_name` across all samples, as (sample_name, path) pairs.
-
-    The sample name is recovered from the same template that produced the glob,
-    because where it sits in the path is itself layout-dependent -- under
-    STAGE_CENTRIC it names a directory inside mapping/, under SAMPLE_CENTRIC it
-    names the directory containing it.
-
-    Only defined for outputs whose first `{sample}` is a whole path segment.
-    Where it sits alongside a wildcard, as in '{sample}*blastn.txt', the split
-    between the two is ambiguous and the recovered name would be unreliable.
-    """
+    """Return `(sample_name, path)` matches for whole-segment sample fields."""
     template = PATHS_BY_LAYOUT[layout or DEFAULT_LAYOUT][output_name]
 
     if '{sample}' not in template.split(os.sep):
