@@ -1,4 +1,5 @@
 import csv
+import glob
 import json
 import logging
 import os
@@ -134,6 +135,22 @@ def test_collect_nextclade_results_handles_empty_nextclade_without_crashing(tmp_
     collector.collect_nextclade_results(str(analysis_dir), str(output_path))
 
     assert output_path.exists()
+
+
+def test_a_nextclade_tsv_without_a_clade_column_is_skipped(analysis_dir, tmp_path):
+    """A TSV missing the columns the collector indexes must be skipped rather
+    than raise: the public entry point has no error handling above it, so a
+    KeyError here would take out the whole of auto-nfflu's post-analysis."""
+    tsv_path = glob.glob(os.path.join(str(analysis_dir), "nextclade", SAMPLE_CONTROL, "*.nextclade.tsv"))[0]
+    with open(tsv_path, "w") as f:
+        f.write("seqName\tsomethingElse\nS2_segment4_HA\t1\n")
+    output_path = tmp_path / "nextclade.tsv"
+
+    Nfflu_Results_Collector().collect_nextclade_results(str(analysis_dir), str(output_path))
+
+    # The other three samples still come through.
+    df = pd.read_csv(output_path, sep="\t")
+    assert set(df["sample"]) == set(SAMPLE_IDS) - {SAMPLE_CONTROL}
 
 
 def test_collect_run_summary_creates_missing_output_directory(analysis_dir, tmp_path):

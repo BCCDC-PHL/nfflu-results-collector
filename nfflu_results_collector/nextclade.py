@@ -13,6 +13,9 @@ import nfflu_results_collector.layouts as layouts
 # sample IDs from external partner batches contain underscores themselves.
 SEGMENT_SUFFIX_PATTERN = re.compile(r'_(?:segment)?\d+_[A-Za-z0-9]+$')
 
+# Columns every per-sample nextclade TSV is indexed on while it is collected.
+REQUIRED_COLUMNS = ['seqName', 'clade', 'alignmentScore']
+
 
 class Nextclade_Results_Collector:
     def __init__(self, config=None):
@@ -125,6 +128,17 @@ class Nextclade_Results_Collector:
                     df = pd.read_csv(tsv_file, sep='\t')
                 except Exception as e:
                     logging.error(json.dumps({"event_type": "tsv_file_read_failed", "tsv_file": tsv_file, "error": str(e)}))
+                    continue
+
+                # Everything below indexes these columns directly, so a TSV
+                # without them would raise rather than degrade.
+                missing_columns = [c for c in REQUIRED_COLUMNS if c not in df.columns]
+                if missing_columns:
+                    logging.error(json.dumps({
+                        "event_type": "tsv_file_missing_required_columns",
+                        "tsv_file": tsv_file,
+                        "missing_columns": missing_columns,
+                    }))
                     continue
 
                 # Parse dataset name from filename
