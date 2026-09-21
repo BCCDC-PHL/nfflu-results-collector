@@ -157,7 +157,9 @@ cannot drift apart.
 
 `layouts.py` holds a second layout, `sample`, which groups the same outputs by
 sample (`{sample}/mapping/...`) with run-level output under `aggregate/`. Select
-it with `"layout": "sample"` in the config; nothing else changes.
+it with `"layout": "sample"` in the config; nothing else changes. Under
+auto-nfflu the value comes from its `nfflu_output_layout` setting instead, so
+both sides resolve the same paths.
 
 `pipeline_status.csv` is the orchestrator's own output rather than nf-flu's, so
 it sits at the top of the output directory under either layout.
