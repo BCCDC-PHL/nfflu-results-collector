@@ -62,6 +62,9 @@ DEFAULT_LAYOUT = 'stage'
 # nanopore; see conf/modules_illumina.config and conf/modules_nanopore.config.
 BLAST_DIR_BY_PLATFORM = {'illumina': os.path.join('blast', 'blastn'), 'nanopore': 'blast'}
 
+# The run tree is analysis_output/<run_id>/<analysis type>/<nf-flu output>.
+ANALYSIS_TYPES = ('short', 'long')
+
 
 def detect_platform(outdir):
     """Detect the sequencing platform, defaulting to Illumina."""
@@ -82,6 +85,24 @@ def detect_platform(outdir):
     logging.info(json.dumps({"event_type": "platform_detected", "platform": platform, "header": header}))
 
     return platform
+
+
+def detect_analysis_type(outdir):
+    """Detect the analysis type from the run tree, or return None if the
+    directory holding `outdir` isn't one of ANALYSIS_TYPES."""
+    analysis_type = os.path.basename(os.path.dirname(os.path.abspath(outdir.rstrip(os.sep))))
+
+    if analysis_type not in ANALYSIS_TYPES:
+        logging.warning(json.dumps({
+            "event_type": "analysis_type_not_recognized",
+            "analysis_dir": outdir,
+            "found": analysis_type,
+        }))
+        return None
+
+    logging.info(json.dumps({"event_type": "analysis_type_detected", "analysis_type": analysis_type}))
+
+    return analysis_type
 
 
 def detect_layout(outdir):

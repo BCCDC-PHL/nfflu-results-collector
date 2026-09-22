@@ -85,3 +85,19 @@ def test_detect_layout_reads_the_layout_off_the_directory(tmp_path, layout, rel)
 
 def test_detect_layout_returns_none_when_nothing_matches(tmp_path):
     assert layouts.detect_layout(str(tmp_path)) is None
+
+
+@pytest.mark.parametrize("analysis_type", ['short', 'long'])
+@pytest.mark.parametrize("trailing", ['', os.sep])
+def test_detect_analysis_type_reads_the_run_tree(tmp_path, analysis_type, trailing):
+    outdir = os.path.join(str(tmp_path), 'RUN-1', analysis_type, 'nf-flu-3.10-output')
+    os.makedirs(outdir)
+    assert layouts.detect_analysis_type(outdir + trailing) == analysis_type
+
+
+def test_detect_analysis_type_returns_none_outside_the_run_tree(tmp_path):
+    """A standalone `-d /some/path` run isn't under analysis_output/<run>/<type>,
+    so the column stays empty rather than filling with a stray directory name."""
+    outdir = os.path.join(str(tmp_path), 'somewhere', 'nf-flu-output')
+    os.makedirs(outdir)
+    assert layouts.detect_analysis_type(outdir) is None

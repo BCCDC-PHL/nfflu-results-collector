@@ -24,6 +24,9 @@ DISPLAY_SEGMENT_ORDER = ["HA", "NA", "M", "NP", "NS", "PA", "PB1", "PB2"]
 
 SAMPLE_IDENTITY_COLUMNS = ["FastQID", "CID", "Plate", "Index", "Well", "Run"]
 
+# Named as nf-flu and auto-nfflu name them: illumina/nanopore, short/long.
+RUN_CONTEXT_COLUMNS = ["platform", "analysis_type"]
+
 SUBTYPE_COMPUTED_COLUMNS = ["subtype_HA_NA_status"]
 SUBTYPE_COLUMNS = ["subtype", "HA_subtype", "NA_subtype"]
 
@@ -47,6 +50,7 @@ PROVENANCE_COLUMNS = ["nextclade_version", "genoflu_version", "nfflu_version"]
 
 CANONICAL_COLUMNS = (
     SAMPLE_IDENTITY_COLUMNS
+    + RUN_CONTEXT_COLUMNS
     + SUBTYPE_COMPUTED_COLUMNS
     + SUBTYPE_COLUMNS
     + SEGMENT_METRIC_COLUMNS

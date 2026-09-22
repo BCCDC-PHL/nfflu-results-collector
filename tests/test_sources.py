@@ -116,6 +116,12 @@ def test_provenance_reads_software_versions(analysis_dir, cfg):
     }
 
 
+def test_run_context_reads_platform_and_analysis_type(analysis_dir, cfg):
+    """The fixture is an Illumina run under a `short/` analysis directory."""
+    result = sources._parse_run_context(str(analysis_dir), cfg)
+    assert result == {"platform": "illumina", "analysis_type": "short"}
+
+
 def test_nextclade_source_picks_ha_only_and_attaches_dataset_metadata(analysis_dir, cfg):
     df = sources._parse_nextclade(str(analysis_dir), cfg)
     row = df.set_index("sample").loc[SAMPLE_SALVAGE]

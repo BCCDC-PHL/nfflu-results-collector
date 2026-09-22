@@ -109,6 +109,7 @@ def build_fixture(root, layout="stage"):
     analysis_dir = os.path.join(run_analysis_dir, "nf-flu-3.10-output")
 
     _build_samplesheets(run_analysis_dir)
+    _build_fixed_samplesheet(analysis_dir)
     _build_fastq(analysis_dir, layout)
     _build_subtyping_report(analysis_dir, layout)
     _build_mapping(analysis_dir, layout)
@@ -127,6 +128,17 @@ def _build_samplesheets(run_analysis_dir):
     lines = ["ID,R1,R2"]
     for sample in SAMPLE_IDS:
         lines.append(f"{sample},/dev/null/{sample}_R1.fastq.gz,/dev/null/{sample}_R2.fastq.gz")
+    _write(path, "\n".join(lines) + "\n")
+
+
+def _build_fixed_samplesheet(analysis_dir):
+    """nf-flu's own samplesheet copy, which platform detection reads. The
+    header is what distinguishes the platforms: Illumina here, `sample,barcode`
+    on nanopore."""
+    path = os.path.join(analysis_dir, "pipeline_info", "samplesheet.fixed.csv")
+    lines = ["sample,fastq1,fastq2,single_end"]
+    for sample in SAMPLE_IDS:
+        lines.append(f"{sample},/dev/null/{sample}_R1.fastq.gz,/dev/null/{sample}_R2.fastq.gz,False")
     _write(path, "\n".join(lines) + "\n")
 
 
