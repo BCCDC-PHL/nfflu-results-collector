@@ -148,8 +148,15 @@ analysis_output/
 │                                        # orchestrator (e.g. auto-nfflu); optional,
 │                                        # only merged in when auto-nfflu mode is on
 └── pipeline_info/
+    ├── samplesheet.fixed.csv           # nf-flu's samplesheet copy; its header
+    │                                     # identifies the sequencing platform
     └── software_versions.yml           # software provenance
 ```
+
+That directory normally sits in a run tree of the form
+`analysis_output/<run_id>/<short|long>/<nf-flu output>`, which is where the
+`Run` and `analysis_type` columns come from. The collector still runs against an
+output directory kept anywhere else; `analysis_type` is left empty in that case.
 
 Every path above is declared in `nfflu_results_collector/layouts.py`, which is
 the only place a path appears. auto-nfflu imports the same module, so the two
@@ -188,6 +195,14 @@ appended after the declared columns.
 - `Index`: Index number
 - `Well`: Well position
 - `Run`: Sequencing run identifier
+
+**Run Context** (the same value on every row of a run):
+- `platform`: `illumina` or `nanopore`, read from the header of
+  `pipeline_info/samplesheet.fixed.csv` (nanopore samplesheets carry a
+  `barcode` column)
+- `analysis_type`: `short` or `long`, read from the analysis directory in the
+  run tree. Empty, with an `analysis_type_not_recognized` warning, when the
+  output directory sits outside that tree
 
 **Subtyping:**
 - `subtype_HA_NA_status`: Description of subtyping success

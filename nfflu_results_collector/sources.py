@@ -237,6 +237,14 @@ def _parse_provenance(analysis_dir, config):
     return result
 
 
+def _parse_run_context(analysis_dir, config):
+    """Platform and analysis type: run-wide facts, identical on every row."""
+    return {
+        'platform': layouts.detect_platform(analysis_dir),
+        'analysis_type': layouts.detect_analysis_type(analysis_dir),
+    }
+
+
 SUBTYPE_SOURCE = ResultSource(
     name="subtype", granularity="per_run",
     columns=schema.SUBTYPE_COLUMNS, parse=_parse_subtype,
@@ -276,10 +284,14 @@ PROVENANCE_SOURCE = ResultSource(
     name="provenance", granularity="global",
     columns=schema.PROVENANCE_COLUMNS, parse=_parse_provenance,
 )
+RUN_CONTEXT_SOURCE = ResultSource(
+    name="run_context", granularity="global",
+    columns=schema.RUN_CONTEXT_COLUMNS, parse=_parse_run_context,
+)
 
 PER_RUN_SOURCES = [SUBTYPE_SOURCE, NEXTCLADE_SOURCE]
 PER_SAMPLE_SOURCES = [IDXSTATS_SOURCE, COMPLETENESS_SOURCE, CLEAVAGE_SOURCE, GENOTYPE_SOURCE]
-GLOBAL_SOURCES = [PROVENANCE_SOURCE]
+GLOBAL_SOURCES = [PROVENANCE_SOURCE, RUN_CONTEXT_SOURCE]
 
 # Declared columns, across every registered source, that are part of the
 # declared run_summary.csv schema (excludes pipeline_status, whose columns
