@@ -41,7 +41,7 @@ SAMPLE_CENTRIC = {
     'blastn_ref':          '{sample}/blast/irma/{sample}*blastn.txt',
     'reference_sequences': '{sample}/reference_sequences/*',
     'variants':            '{sample}/variants/*',
-    'bcftools_consensus':  '{sample}/consensus/bcftools/{sample}*.consensus.fasta',
+    'bcftools_consensus':  '{sample}/consensus/bcftools/{sample}.consensus.fasta',
     'blastn_subtype':      '{sample}/blast/consensus/{sample}*.blastn.txt',
     'fastq_dir':           '{sample}/fastq',
     'subtype_results':     'aggregate/bcftools/subtyping_report/subtype_results.csv',
