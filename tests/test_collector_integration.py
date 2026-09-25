@@ -3,11 +3,13 @@ import glob
 import json
 import logging
 import os
+from pathlib import Path
 
 import pandas as pd
 import pytest
 
 from nfflu_results_collector.collector import Nfflu_Results_Collector
+from nfflu_results_collector import layouts
 from tests.fixture_builder import build_fixture, RUN_ID, SAMPLE_IDS, SAMPLE_STANDARD, SAMPLE_CONTROL, SAMPLE_SALVAGE
 
 GOLDEN_PATH = os.path.join(os.path.dirname(__file__), "fixtures", "golden_run_summary.csv")
@@ -103,15 +105,31 @@ def test_collect_mixture_report(analysis_dir, tmp_path):
     assert pd.isna(indexed.loc[SAMPLE_CONTROL, "mixture_present"])
 
 
-def test_symlink_consensus_fastas(analysis_dir, tmp_path):
+@pytest.mark.parametrize("layout", ("stage", "sample"))
+@pytest.mark.parametrize("auto_mode", (False, True))
+def test_symlink_consensus_fastas(tmp_path, layout, auto_mode):
+    analysis_dir = build_fixture(tmp_path / layout, layout=layout)
+    consensus_dir = Path(layouts.output_path(
+        analysis_dir, "bcftools_consensus", sample=SAMPLE_STANDARD, layout=layout,
+    )).parent
+    for name in (
+        f"{SAMPLE_STANDARD}.Segment_1_PB2.PV060478.1.bcftools.consensus.fasta",
+        "ORPHAN.consensus.fasta",
+    ):
+        (consensus_dir / name).write_text(">PB2\nACGT\n")
+
     output_dir = tmp_path / "symlinks"
-    collector = Nfflu_Results_Collector()
+    collector = Nfflu_Results_Collector({"layout": layout, "auto-nfflu": auto_mode})
     collector.symlink_consensus_fastas(str(analysis_dir), str(output_dir))
 
     linked = sorted(os.listdir(output_dir))
     assert linked == sorted(f"{s}.consensus.fasta" for s in SAMPLE_IDS)
     for name in linked:
         assert os.path.islink(output_dir / name)
+        sample = name.removesuffix(".consensus.fasta")
+        assert os.readlink(output_dir / name) == layouts.output_path(
+            analysis_dir, "bcftools_consensus", sample=sample, layout=layout,
+        )
 
 
 def test_collect_nextclade_results_writes_tsv(analysis_dir, tmp_path):
