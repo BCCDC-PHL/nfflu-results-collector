@@ -30,5 +30,8 @@ packages = ["nfflu_results_collector"]
 zip-safe = false
 include-package-data = true
 
+[tool.setuptools.package-data]
+nfflu_results_collector = ["config/*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
