@@ -27,7 +27,7 @@ A Python module for collecting, aggregating, and summarizing results from [nf-fl
 - **Range-checked values**: read counts, consensus completeness and tree-pass flags are checked against `schema.CHECKS`, logging a `column_failed_check` event without altering the value
 - **Logging**: Comprehensive logging for debugging and tracking data collection progress
 - **Mixture Reporting**: Optional mixture analysis report generation
-- **Consensus Linking**: Creates symlinks to consensus FASTA files for downstream analysis
+- **Consensus Linking**: Creates symlinks to each sample's combined `{sample}.consensus.fasta` for downstream analysis
 
 ## Installation
 

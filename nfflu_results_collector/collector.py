@@ -186,12 +186,15 @@ class Nfflu_Results_Collector:
         logging.info(json.dumps({"event_type": "mixture_report_written", "output_file": output_mixture_file, "sample_count": len(final_df), "with_data": len(collected_df)}))
 
     def symlink_consensus_fastas(self, analysis_dir, output_dir):
-        """Symlink consensus FASTA files to the output directory."""
+        """Symlink each sample's combined consensus FASTA to the output directory."""
         os.makedirs(output_dir, exist_ok=True)
 
-        pattern = layouts.output_path(analysis_dir, "bcftools_consensus", layout=self.config["layout"])
-
-        for fasta_file in glob.glob(pattern):
+        for sample in self._resolve_sample_ids(analysis_dir):
+            fasta_file = layouts.output_path(
+                analysis_dir, "bcftools_consensus", sample=sample, layout=self.config["layout"]
+            )
+            if not os.path.isfile(fasta_file):
+                continue
             basename = os.path.basename(fasta_file)
             dest = os.path.join(output_dir, basename)
 
