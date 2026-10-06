@@ -76,6 +76,7 @@ nfflu-results-collector \
 
 - `-d, --analysis-dir`: **(Required)** Path to nf-flu analysis output directory
 - `-o, --output-summary`: **(Required)** Path for output summary CSV file
+- `--output-summary-json`: Optional path for a flat JSON array from the same validated summary DataFrame
 - `-O, --output-mixture`: Path for optional mixture report CSV file
 - `-s, --output-symlinks`: Directory path for creating consensus FASTA symlinks
 - `-n, --output-nextclade`: Path for optional aggregated Nextclade TSV export
@@ -360,3 +361,23 @@ Contributions are welcome! Please:
 
 - [nf-flu Pipeline](https://github.com/CFIA-NCFAD/nf-flu)
 - [GitHub Repository](https://github.com/BCCDC-PHL/nfflu-results-collector)
+
+## Optional summary JSON export
+
+```bash
+nfflu-results-collector -d /path/to/analysis -o summary.csv --output-summary-json summary.json
+```
+
+Python callers can pass `output_summary_json_file="summary.json"` to
+`collect_run_summary`. The CSV argument remains required and its output is unchanged.
+JSON retains canonical column order, extra fields (including dynamic `status_*`
+columns), literal dots in names, numeric values and string identifiers. Missing and
+non-finite values serialize as `null`; zero remains zero. Pandas writes up to 15
+places of decimal precision. This is a presentation export, not a lossless encoding
+of every floating-point bit.
+
+JSON is serialized to a temporary file in the destination directory, then atomically
+replaces the destination. Failed writes raise and leave the previous JSON intact.
+CSV and JSON are separate writes; a JSON failure may occur after CSV is written.
+With no samples, requested JSON is `[]` and CSV retains its existing no-write behavior.
+The collector does not maintain a website index or publish files.
