@@ -10,6 +10,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--analysis-dir', required=True)
     parser.add_argument('-o', '--output-summary', required=True, help='Path to output summary CSV file')
+    parser.add_argument('--output-summary-json', help='Optional path to a flat summary JSON array')
     parser.add_argument('-O', '--output-mixture', help='Path to output mixture report CSV file')
     parser.add_argument('-s', '--output-symlinks', help='Path to output symlinks directory')
     parser.add_argument('-n', '--output-nextclade', help='Path to output Nextclade CSV file')
@@ -27,7 +28,8 @@ def main():
     overrides = {'auto-nfflu': args.auto_nfflu} if args.auto_nfflu else None
     collector = Nfflu_Results_Collector(overrides, config_path=args.config)
 
-    collector.collect_run_summary(args.analysis_dir, args.output_summary)
+    collector.collect_run_summary(args.analysis_dir, args.output_summary,
+                                  output_summary_json_file=args.output_summary_json)
     if args.output_mixture:
         collector.collect_mixture_report(args.analysis_dir, args.output_mixture)
     if args.output_symlinks:

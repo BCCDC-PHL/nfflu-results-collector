@@ -2,6 +2,8 @@ import glob
 import json
 import os
 import logging
+import tempfile
+from pathlib import Path
 
 import pandas as pd
 
@@ -59,8 +61,8 @@ class Nfflu_Results_Collector:
             active.append(sources.PIPELINE_STATUS_SOURCE)
         return active
 
-    def collect_run_summary(self, analysis_dir, output_summary_file, *, run_id=None, sample_ids=None):
-        """Collect all results and merge them into a single summary CSV.
+    def collect_run_summary(self, analysis_dir, output_summary_file, *, run_id=None, sample_ids=None, output_summary_json_file=None):
+        """Collect all results and merge them into a summary CSV and optional flat JSON array.
 
         `run_id` and `sample_ids` are normally derived from `analysis_dir`
         (its path and contents), matching the original behavior of this
@@ -75,6 +77,8 @@ class Nfflu_Results_Collector:
 
         if len(sample_ids) == 0:
             logging.warning(json.dumps({"event_type": "no_samples_found", "analysis_dir": analysis_dir}))
+            if output_summary_json_file is not None:
+                _write_summary_json(pd.DataFrame(), output_summary_json_file)
             return
 
         if run_id is None:
@@ -108,6 +112,8 @@ class Nfflu_Results_Collector:
             os.makedirs(output_summary_dir, exist_ok=True)
 
         output_df.to_csv(output_summary_file, index=False)
+        if output_summary_json_file is not None:
+            _write_summary_json(output_df, output_summary_json_file)
         logging.info(json.dumps({"event_type": "results_written", "output_file": output_summary_file}))
 
     def collect_nextclade_results(self, analysis_dir, nextclade_output_path):
@@ -202,3 +208,20 @@ class Nfflu_Results_Collector:
                 os.remove(dest)
 
             os.symlink(os.path.abspath(fasta_file), dest)
+
+
+def _write_summary_json(frame, destination):
+    """Replace the destination only after pandas serializes the complete frame."""
+    destination = Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=destination.parent,
+                                         prefix=f".{destination.name}.", suffix=".tmp", delete=False) as handle:
+            temporary = Path(handle.name)
+            frame.to_json(handle, orient="records", indent=2, double_precision=15, force_ascii=False)
+            handle.write("\n")
+        os.replace(temporary, destination)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
