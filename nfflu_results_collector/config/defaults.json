@@ -6,7 +6,6 @@
     "threshold": 90
   },
   "nextclade": {
-    "ha_only": true,
-    "legacy_clade": false
+    "ha_only": true
   }
 }
