@@ -70,6 +70,61 @@ MIXTURE_COLUMNS = [
     'initial_reads', 'pass_qc_reads', 'fail_qc_reads', 'match_reads', 'nomatch_reads',
 ]
 
+
+# The collected nextclade-results.tsv: one row per sample, whichever dataset
+# won. Every Nextclade dataset shares the core columns; the nomenclature and
+# phenotype columns exist only in some datasets and are null for the rest.
+NEXTCLADE_IDENTITY_COLUMNS = [
+    "sample", "seqName", "segment", "nextclade_dataset_name", "nextclade_dataset_version",
+]
+
+NEXTCLADE_NOMENCLATURE_COLUMNS = ["clade", "subclade", "proposedSubclade", "short-clade", "legacy-clade"]
+
+NEXTCLADE_PHENOTYPE_COLUMNS = ["glycosylation", "RBD", "NAI", "cleavage_site", "polybasic_cleavage_site"]
+
+NEXTCLADE_CORE_COLUMNS = [
+    "qc.overallScore", "qc.overallStatus",
+    "totalSubstitutions", "totalDeletions", "totalInsertions", "totalFrameShifts",
+    "totalMissing", "totalNonACGTNs",
+    "totalAminoacidSubstitutions", "totalAminoacidDeletions", "totalAminoacidInsertions", "totalUnknownAa",
+    "alignmentScore", "alignmentStart", "alignmentEnd", "coverage", "cdsCoverage", "isReverseComplement",
+    "substitutions", "deletions", "insertions", "frameShifts",
+    "aaSubstitutions", "aaDeletions", "aaInsertions",
+    "privateNucMutations.reversionSubstitutions", "privateNucMutations.labeledSubstitutions",
+    "privateNucMutations.unlabeledSubstitutions", "privateNucMutations.totalReversionSubstitutions",
+    "privateNucMutations.totalLabeledSubstitutions", "privateNucMutations.totalUnlabeledSubstitutions",
+    "privateNucMutations.totalPrivateSubstitutions",
+    "privateAaMutations.reversionSubstitutions", "privateAaMutations.labeledSubstitutions",
+    "privateAaMutations.unlabeledSubstitutions", "privateAaMutations.totalReversionSubstitutions",
+    "privateAaMutations.totalLabeledSubstitutions", "privateAaMutations.totalUnlabeledSubstitutions",
+    "privateAaMutations.totalPrivateSubstitutions",
+    "missing",
+] + [
+    f"founderMuts['{key}'].{field}"
+    for key in ("clade", "legacy-clade", "proposedSubclade")
+    for field in ("nodeName", "substitutions", "deletions", "aaSubstitutions", "aaDeletions")
+] + [
+    "unknownAaRanges", "nonACGTNs",
+    "qc.missingData.missingDataThreshold", "qc.missingData.score", "qc.missingData.status",
+    "qc.missingData.totalMissing",
+    "qc.mixedSites.mixedSitesThreshold", "qc.mixedSites.score", "qc.mixedSites.status",
+    "qc.mixedSites.totalMixedSites",
+    "qc.privateMutations.cutoff", "qc.privateMutations.excess", "qc.privateMutations.score",
+    "qc.privateMutations.status", "qc.privateMutations.total",
+    "qc.snpClusters.clusteredSNPs", "qc.snpClusters.score", "qc.snpClusters.status", "qc.snpClusters.totalSNPs",
+    "qc.frameShifts.frameShifts", "qc.frameShifts.totalFrameShifts", "qc.frameShifts.frameShiftsIgnored",
+    "qc.frameShifts.totalFrameShiftsIgnored", "qc.frameShifts.score", "qc.frameShifts.status",
+    "qc.stopCodons.stopCodons", "qc.stopCodons.totalStopCodons", "qc.stopCodons.score", "qc.stopCodons.status",
+    "totalPcrPrimerChanges", "pcrPrimerChanges", "failedCdses", "warnings", "errors",
+]
+
+NEXTCLADE_RESULTS_COLUMNS = (
+    NEXTCLADE_IDENTITY_COLUMNS
+    + NEXTCLADE_NOMENCLATURE_COLUMNS
+    + NEXTCLADE_PHENOTYPE_COLUMNS
+    + NEXTCLADE_CORE_COLUMNS
+)
+
 def _num(s):
     """Non-null values as numbers, with anything unparseable as NaN, so a
     check never raises on a column that has gone to strings."""

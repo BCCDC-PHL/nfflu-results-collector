@@ -125,13 +125,13 @@ class Nfflu_Results_Collector:
 
         # collect_nextclade_results returns None when no sample produced a
         # usable nextclade call (e.g. nextclade skipped, or no HA segments).
-        # Fall back to an empty frame so we always write a (headerless)
-        # file rather than crashing on None.to_csv -- important because
+        # Write a header-only file rather than crashing on None.to_csv --
         # auto-nfflu calls this before collect_run_summary, so a crash here
-        # would prevent the run summary from ever being written.
+        # would prevent the run summary from ever being written. The header
+        # keeps empty runs stackable with the rest.
         if nextclade_df is None:
             logging.warning(json.dumps({"event_type": "nextclade_results_empty", "analysis_dir": analysis_dir}))
-            nextclade_df = pd.DataFrame()
+            nextclade_df = pd.DataFrame(columns=schema.NEXTCLADE_RESULTS_COLUMNS)
 
         output_dir = os.path.dirname(nextclade_output_path)
         if output_dir != '' and not os.path.exists(output_dir):

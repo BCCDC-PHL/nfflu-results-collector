@@ -7,6 +7,7 @@ import logging
 
 import nfflu_results_collector.config as config_module
 import nfflu_results_collector.layouts as layouts
+import nfflu_results_collector.schema as schema
 
 # Trailing segment label on an nf-flu sequence ID: "<sample>_segment4_HA" ->
 # "<sample>". Stripped rather than splitting on the first underscore, because
@@ -15,6 +16,10 @@ SEGMENT_SUFFIX_PATTERN = re.compile(r'_(?:segment)?\d+_[A-Za-z0-9]+$')
 
 # Columns every per-sample nextclade TSV is indexed on while it is collected.
 REQUIRED_COLUMNS = ['seqName', 'clade', 'alignmentScore']
+
+# Nextclade's row index, and columns keyed by a reference strain whose name
+# changes between dataset versions.
+DROPPED_COLUMN_PATTERN = re.compile(r"^(index$|relativeMutations\[)")
 
 
 class Nextclade_Results_Collector:
@@ -78,6 +83,9 @@ class Nextclade_Results_Collector:
         If the file is absent, dataset name/version are reported as 'N/A'
         for every sample.
 
+        Returns one row per sample with columns schema.NEXTCLADE_RESULTS_COLUMNS,
+        followed by any undeclared columns, or None when no sample has a call.
+
         Args:
             analysis_dir: The nf-flu output directory
         """
@@ -123,9 +131,9 @@ class Nextclade_Results_Collector:
             dataframes = []
             for tsv_file in tsv_files:
                 logging.debug(json.dumps({"event_type": "tsv_file_processing_started", "tsv_file": tsv_file}))
-                # Read the TSV file
+                # Read clade labels as text: "1" or "2.10" must not be parsed as floats.
                 try:
-                    df = pd.read_csv(tsv_file, sep='\t')
+                    df = pd.read_csv(tsv_file, sep='\t', dtype=dict.fromkeys(schema.NEXTCLADE_NOMENCLATURE_COLUMNS, str))
                 except Exception as e:
                     logging.error(json.dumps({"event_type": "tsv_file_read_failed", "tsv_file": tsv_file, "error": str(e)}))
                     continue
@@ -147,14 +155,9 @@ class Nextclade_Results_Collector:
                 dataset_name = datasets_dict[filename]['nextclade_dataset_name'] if datasets_dict and filename in datasets_dict else 'N/A'
                 dataset_version = datasets_dict[filename]['nextclade_dataset_version'] if datasets_dict and filename in datasets_dict else 'N/A'
 
-                # Add dataset column
                 filtered_df = self._filter_nextclade_df(df)
 
-                insert_position = filtered_df.columns.get_loc('clade')
-
-                filtered_df.insert(insert_position, 'dataset', dataset_name)
-                filtered_df.insert(insert_position, 'segment', filtered_df['seqName'].str.split('_').str[-1])
-
+                filtered_df['segment'] = filtered_df['seqName'].str.split('_').str[-1]
                 filtered_df['nextclade_dataset_name'] = dataset_name
                 filtered_df['nextclade_dataset_version'] = dataset_version
 
@@ -166,8 +169,6 @@ class Nextclade_Results_Collector:
 
             # Concatenate all dataframes for this sample
             sample_df = pd.concat(dataframes, ignore_index=True)
-
-            sample_df = sample_df.drop(columns=['index'], errors='ignore')
 
             sample_df = sample_df.loc[sample_df.groupby('sample')['alignmentScore'].idxmax()]
 
@@ -183,8 +184,16 @@ class Nextclade_Results_Collector:
         final_df = pd.concat(collect_dfs, ignore_index=True)
         logging.debug(json.dumps({"event_type": "nextclade_results_concatenated", "config": self.config}))
 
+        # Each dataset adds its own columns; reindex so every run writes the same header.
+        final_df = final_df.drop(columns=[c for c in final_df.columns if DROPPED_COLUMN_PATTERN.match(c)])
+        extra = [c for c in final_df.columns if c not in schema.NEXTCLADE_RESULTS_COLUMNS]
+        if extra:
+            logging.warning(json.dumps({"event_type": "unexpected_nextclade_columns_found", "columns": extra}))
+        final_df = final_df.reindex(columns=schema.NEXTCLADE_RESULTS_COLUMNS + extra)
+
         if self._legacy_clade():
-            final_df['clade'] = final_df['legacy-clade']
+            # Datasets without a legacy nomenclature (e.g. H5) keep their clade.
+            final_df['clade'] = final_df['legacy-clade'].combine_first(final_df['clade'])
             logging.info(json.dumps({"event_type": "remapping_to_legacy_clade_column"}))
 
         return final_df

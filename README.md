@@ -23,7 +23,7 @@ A Python module for collecting, aggregating, and summarizing results from [nf-fl
 - **Quality Metrics**: Calculates consensus completeness and tree-pass status per segment
 - **Pluggable result sources**: each result type (subtype, nextclade, idxstats, ...) is a small, independently testable parser registered in `sources.py` -- adding a new one doesn't require touching the orchestration logic
 - **Config-driven**: segment list, tree-pass threshold, output layout, and Nextclade behaviour all live in config (packaged defaults, optionally overridden by a YAML/JSON file and/or a caller-supplied dict); input paths live in `layouts.py`, shared with auto-nfflu
-- **Declared output schema**: the summary CSV's column set and order (`nfflu_results_collector.schema.CANONICAL_COLUMNS`) is validated on every run; unexpected columns are never silently dropped
+- **Declared output schema**: the summary CSV's column set and order (`nfflu_results_collector.schema.CANONICAL_COLUMNS`) is validated on every run; unexpected columns are never silently dropped. The Nextclade TSV has its own fixed schema (`schema.NEXTCLADE_RESULTS_COLUMNS`), so outputs from different runs stack directly
 - **Range-checked values**: read counts, consensus completeness and tree-pass flags are checked against `schema.CHECKS`, logging a `column_failed_check` event without altering the value
 - **Logging**: Comprehensive logging for debugging and tracking data collection progress
 - **Mixture Reporting**: Optional mixture analysis report generation
@@ -79,7 +79,7 @@ nfflu-results-collector \
 - `--output-summary-json`: Optional path for a flat JSON array from the same validated summary DataFrame
 - `-O, --output-mixture`: Path for optional mixture report CSV file
 - `-s, --output-symlinks`: Directory path for creating consensus FASTA symlinks
-- `-n, --output-nextclade`: Path for optional aggregated Nextclade TSV export
+- `-n, --output-nextclade`: Path for optional aggregated Nextclade TSV export, with a fixed column set (see [Nextclade TSV](#nextclade-tsv))
 - `-a, --auto-nfflu`: Enable auto-nfflu mode (sample discovery from `start_samplesheet.csv`; merges in `pipeline_status.csv` if present)
 - `-c, --config`: Path to a user config file (YAML or JSON) overriding packaged defaults -- see [Configuration](#configuration)
 - `--log-level`: Logging verbosity (default: INFO; options: DEBUG, INFO, WARNING, ERROR)
@@ -250,6 +250,29 @@ Optional output containing mixture analysis results:
 - `ha_read_ratio`: Read ratio for HA segment
 - `na_read_ratio`: Read ratio for NA segment
 
+### Nextclade TSV
+
+Optional output (`-n`) with one row per sample: the best-scoring HA call
+across every Nextclade dataset the sample was run against (all HA/NA segments
+when `nextclade.ha_only` is false). Different datasets write different
+columns, so the output is reindexed to `schema.NEXTCLADE_RESULTS_COLUMNS` and
+every run writes the same header, including runs with no calls. Columns keep
+Nextclade's own names, in this order:
+
+- Identity: `sample`, `seqName`, `segment`, `nextclade_dataset_name`, `nextclade_dataset_version`
+- Nomenclature: `clade`, `subclade`, `proposedSubclade`, `short-clade`, `legacy-clade`
+- Phenotype: `glycosylation`, `RBD` (H3 HA), `NAI` (NA), `cleavage_site`, `polybasic_cleavage_site` (H5)
+- Core: QC, mutation and alignment columns shared by every dataset, plus
+  `founderMuts[...]` for the `clade`, `legacy-clade` and `proposedSubclade` keys
+
+A column a dataset doesn't produce is empty. `index` and the
+`relativeMutations['<reference strain>']` columns are dropped, because the
+strain name in the column changes between dataset versions. Any other
+undeclared column, such as one added by a new dataset version, is appended
+after the schema with an `unexpected_nextclade_columns_found` warning; add it to
+`schema.py` to make it permanent. With `nextclade.legacy_clade`, `clade` takes
+the `legacy-clade` value where the dataset has one.
+
 ## Configuration
 
 Configuration is layered: packaged defaults (`nfflu_results_collector/config/defaults.json`)
@@ -307,7 +330,7 @@ nfflu-results-collector/
 │   ├── sources.py           # ResultSource registry: one parser per result
 │   │                         # type (subtype, idxstats, completeness, ...)
 │   ├── sample_id.py         # FastQID -> {CID, Plate, Index, Well} parsing
-│   ├── schema.py            # CANONICAL_COLUMNS (the declared output contract)
+│   ├── schema.py            # CANONICAL_COLUMNS and NEXTCLADE_RESULTS_COLUMNS (the declared output contracts)
 │   │                         # and order_and_validate()
 │   ├── nextclade.py         # Nextclade-specific collection/filtering
 │   ├── auto.py               # auto-nfflu sample discovery + pipeline_status.csv merge

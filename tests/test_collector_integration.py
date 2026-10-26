@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from nfflu_results_collector.collector import Nfflu_Results_Collector
-from nfflu_results_collector import layouts
+from nfflu_results_collector import layouts, schema
 from tests.fixture_builder import build_fixture, RUN_ID, SAMPLE_IDS, SAMPLE_STANDARD, SAMPLE_CONTROL, SAMPLE_SALVAGE
 
 GOLDEN_PATH = os.path.join(os.path.dirname(__file__), "fixtures", "golden_run_summary.csv")
@@ -139,6 +139,64 @@ def test_collect_nextclade_results_writes_tsv(analysis_dir, tmp_path):
 
     df = pd.read_csv(output_path, sep="\t")
     assert set(df["sample"]) == set(SAMPLE_IDS)
+    assert list(df.columns) == schema.NEXTCLADE_RESULTS_COLUMNS
+
+
+def _rewrite_nextclade_tsv(analysis_dir, sample, columns):
+    """Replace a sample's Nextclade TSV with a single HA row carrying `columns`."""
+    tsv_path = glob.glob(os.path.join(str(analysis_dir), "nextclade", sample, "*.nextclade.tsv"))[0]
+    row = {"seqName": f"{sample}_segment4_HA", "alignmentScore": 1800, **columns}
+    pd.DataFrame([row]).to_csv(tsv_path, sep="\t", index=False)
+
+
+def test_nextclade_results_have_one_header_whichever_datasets_won(analysis_dir, tmp_path, caplog):
+    """H5 and seasonal datasets write different columns. Both land in the
+    declared schema; strain-keyed columns are dropped; an undeclared column is
+    kept at the end with a warning."""
+    _rewrite_nextclade_tsv(analysis_dir, SAMPLE_STANDARD, {
+        "clade": "2.3.4.4b",
+        "cleavage_site": "HA:341:KRRKR",
+        "relativeMutations['A/American_wigeon/North_Carolina/AH0182517/2022'].substitutions": "A1G",
+    })
+    _rewrite_nextclade_tsv(analysis_dir, SAMPLE_SALVAGE, {
+        "clade": "J.2", "subclade": "J.2", "legacy-clade": "3C.2a1b.2a.2a.3a.1", "RBD": 0, "newColumn": "x",
+    })
+    output_path = tmp_path / "nextclade.tsv"
+
+    with caplog.at_level(logging.WARNING):
+        Nfflu_Results_Collector().collect_nextclade_results(str(analysis_dir), str(output_path))
+
+    df = pd.read_csv(output_path, sep="\t")
+    assert list(df.columns) == schema.NEXTCLADE_RESULTS_COLUMNS + ["newColumn"]
+    assert "unexpected_nextclade_columns_found" in caplog.text
+    df = df.set_index("sample")
+    assert df.loc[SAMPLE_STANDARD, "cleavage_site"] == "HA:341:KRRKR"
+    assert pd.isna(df.loc[SAMPLE_STANDARD, "RBD"])
+    assert df.loc[SAMPLE_SALVAGE, "RBD"] == 0
+    assert pd.isna(df.loc[SAMPLE_SALVAGE, "cleavage_site"])
+
+
+def test_numeric_looking_clade_labels_pass_through_unchanged(analysis_dir, tmp_path):
+    _rewrite_nextclade_tsv(analysis_dir, SAMPLE_STANDARD, {"clade": "2.10", "legacy-clade": "1"})
+    output_path = tmp_path / "nextclade.tsv"
+
+    Nfflu_Results_Collector().collect_nextclade_results(str(analysis_dir), str(output_path))
+
+    df = pd.read_csv(output_path, sep="\t", dtype=str).set_index("sample")
+    assert df.loc[SAMPLE_STANDARD, "clade"] == "2.10"
+    assert df.loc[SAMPLE_STANDARD, "legacy-clade"] == "1"
+
+
+def test_legacy_clade_mode_keeps_the_clade_of_datasets_without_one(analysis_dir, tmp_path):
+    _rewrite_nextclade_tsv(analysis_dir, SAMPLE_STANDARD, {"clade": "2.3.4.4b"})
+    output_path = tmp_path / "nextclade.tsv"
+
+    collector = Nfflu_Results_Collector({"nextclade": {"legacy_clade": True}})
+    collector.collect_nextclade_results(str(analysis_dir), str(output_path))
+
+    df = pd.read_csv(output_path, sep="\t").set_index("sample")
+    assert df.loc[SAMPLE_STANDARD, "clade"] == "2.3.4.4b"
+    assert df.loc[SAMPLE_SALVAGE, "clade"] == "3c2.A1b"
 
 
 def test_collect_nextclade_results_handles_empty_nextclade_without_crashing(tmp_path):
@@ -152,7 +210,9 @@ def test_collect_nextclade_results_handles_empty_nextclade_without_crashing(tmp_
     collector = Nfflu_Results_Collector()
     collector.collect_nextclade_results(str(analysis_dir), str(output_path))
 
-    assert output_path.exists()
+    df = pd.read_csv(output_path, sep="\t")
+    assert df.empty
+    assert list(df.columns) == schema.NEXTCLADE_RESULTS_COLUMNS
 
 
 def test_a_nextclade_tsv_without_a_clade_column_is_skipped(analysis_dir, tmp_path):
