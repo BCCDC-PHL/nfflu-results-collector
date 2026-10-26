@@ -21,15 +21,14 @@ def test_load_default_config_has_expected_shape():
     assert cfg["segments"] == ["PB2", "PB1", "PA", "HA", "NP", "NA", "M", "NS"]
     assert cfg["tree_pass"]["threshold"] == 90
     assert cfg["nextclade"]["ha_only"] is True
-    assert cfg["nextclade"]["legacy_clade"] is False
 
 
 def test_overrides_deep_merge_without_clobbering_sibling_keys():
-    cfg = config.load_config(overrides={"nextclade": {"ha_only": False}})
-    assert cfg["nextclade"]["ha_only"] is False
-    # legacy_clade wasn't touched by the override -- deep merge must not
+    cfg = config.load_config(overrides={"nextclade": {"extra_key": 1}})
+    assert cfg["nextclade"]["extra_key"] == 1
+    # ha_only wasn't touched by the override -- deep merge must not
     # wipe it out the way the old flat dict.update() would have.
-    assert cfg["nextclade"]["legacy_clade"] is False
+    assert cfg["nextclade"]["ha_only"] is True
 
 
 def test_load_config_from_json_file(tmp_path):

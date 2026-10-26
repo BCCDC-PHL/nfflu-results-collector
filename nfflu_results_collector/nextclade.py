@@ -37,9 +37,6 @@ class Nextclade_Results_Collector:
     def _ha_only(self):
         return self.config.get("nextclade", {}).get("ha_only", True)
 
-    def _legacy_clade(self):
-        return self.config.get("nextclade", {}).get("legacy_clade", False)
-
     def _filter_nextclade_df(self, df):
         df.insert(0, 'sample', df['seqName'].str.replace(SEGMENT_SUFFIX_PATTERN, '', regex=True))
         df = df.dropna(subset=['clade'])
@@ -189,11 +186,4 @@ class Nextclade_Results_Collector:
         extra = [c for c in final_df.columns if c not in schema.NEXTCLADE_RESULTS_COLUMNS]
         if extra:
             logging.warning(json.dumps({"event_type": "unexpected_nextclade_columns_found", "columns": extra}))
-        final_df = final_df.reindex(columns=schema.NEXTCLADE_RESULTS_COLUMNS + extra)
-
-        if self._legacy_clade():
-            # Datasets without a legacy nomenclature (e.g. H5) keep their clade.
-            final_df['clade'] = final_df['legacy-clade'].combine_first(final_df['clade'])
-            logging.info(json.dumps({"event_type": "remapping_to_legacy_clade_column"}))
-
-        return final_df
+        return final_df.reindex(columns=schema.NEXTCLADE_RESULTS_COLUMNS + extra)

@@ -187,18 +187,6 @@ def test_numeric_looking_clade_labels_pass_through_unchanged(analysis_dir, tmp_p
     assert df.loc[SAMPLE_STANDARD, "legacy-clade"] == "1"
 
 
-def test_legacy_clade_mode_keeps_the_clade_of_datasets_without_one(analysis_dir, tmp_path):
-    _rewrite_nextclade_tsv(analysis_dir, SAMPLE_STANDARD, {"clade": "2.3.4.4b"})
-    output_path = tmp_path / "nextclade.tsv"
-
-    collector = Nfflu_Results_Collector({"nextclade": {"legacy_clade": True}})
-    collector.collect_nextclade_results(str(analysis_dir), str(output_path))
-
-    df = pd.read_csv(output_path, sep="\t").set_index("sample")
-    assert df.loc[SAMPLE_STANDARD, "clade"] == "2.3.4.4b"
-    assert df.loc[SAMPLE_SALVAGE, "clade"] == "3c2.A1b"
-
-
 def test_collect_nextclade_results_handles_empty_nextclade_without_crashing(tmp_path):
     """When nextclade produced no usable calls (empty/absent nextclade
     dir), collect_nextclade_results must not raise -- auto-nfflu calls it

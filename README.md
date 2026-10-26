@@ -270,8 +270,7 @@ A column a dataset doesn't produce is empty. `index` and the
 strain name in the column changes between dataset versions. Any other
 undeclared column, such as one added by a new dataset version, is appended
 after the schema with an `unexpected_nextclade_columns_found` warning; add it to
-`schema.py` to make it permanent. With `nextclade.legacy_clade`, `clade` takes
-the `legacy-clade` value where the dataset has one.
+`schema.py` to make it permanent.
 
 ## Configuration
 
@@ -289,7 +288,6 @@ tree_pass:
 segments: [PB2, PB1, PA, HA, NP, NA, M, NS]
 nextclade:
   ha_only: true           # default: true
-  legacy_clade: false     # default: false
 layout: stage             # default: stage; "sample" for the per-sample layout
 ```
 
